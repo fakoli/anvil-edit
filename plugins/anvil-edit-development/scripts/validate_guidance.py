@@ -14,6 +14,12 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
 SKILLS_ROOT = PLUGIN_ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SEMVER_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 AGENT_STRING_FIELD_RE = re.compile(r'^  ([a-z_]+):\s*("(?:[^"\\]|\\.)*")$')
 AGENT_BOOL_FIELD_RE = re.compile(r"^  ([a-z_]+):\s*(true|false)$")
@@ -76,8 +82,8 @@ def validate_manifest(errors: list[str], plugin_root: Path = PLUGIN_ROOT) -> Non
         fail(errors, f"{path}: manifest name must match plugin directory")
     if manifest.get("skills") != "./skills/":
         fail(errors, f"{path}: skills must be ./skills/")
-    if not re.fullmatch(r"\d+\.\d+\.\d+", str(manifest.get("version", ""))):
-        fail(errors, f"{path}: version must be semantic x.y.z")
+    if not SEMVER_RE.fullmatch(str(manifest.get("version", ""))):
+        fail(errors, f"{path}: version must be valid semantic versioning")
     interface = manifest.get("interface")
     if not isinstance(interface, dict):
         fail(errors, f"{path}: interface must be an object")
@@ -85,6 +91,16 @@ def validate_manifest(errors: list[str], plugin_root: Path = PLUGIN_ROOT) -> Non
     for key in ("displayName", "shortDescription", "longDescription"):
         if not isinstance(interface.get(key), str) or not interface[key].strip():
             fail(errors, f"{path}: missing interface.{key}")
+    default_prompts = interface.get("defaultPrompt")
+    if (
+        not isinstance(default_prompts, list)
+        or not 1 <= len(default_prompts) <= 3
+        or any(
+            not isinstance(prompt, str) or not prompt.strip()
+            for prompt in default_prompts
+        )
+    ):
+        fail(errors, f"{path}: interface.defaultPrompt must contain 1-3 strings")
 
 
 def parse_agent_yaml(
