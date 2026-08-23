@@ -45,6 +45,6 @@ and append a decision record.
 ## Keep this skill current
 
 After an authorized contract or boundary change, use
-`$refresh-product-guidance` before handoff. Update this skill in the same change
-when its trigger, review order, or load-bearing checks are stale. On read-only
-review, report drift without editing repository files.
+`$anvil-edit-development:refresh-product-guidance` before handoff. Update this
+skill in the same change when its trigger, review order, or load-bearing checks
+are stale. On read-only review, report drift without editing repository files.

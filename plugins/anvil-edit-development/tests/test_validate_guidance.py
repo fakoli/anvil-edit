@@ -264,6 +264,7 @@ class ManifestTests(unittest.TestCase):
         manifest = root / ".codex-plugin" / "plugin.json"
         manifest.parent.mkdir(parents=True)
         manifest.write_text(json.dumps(value), encoding="utf-8")
+        (root / "skills" / "example").mkdir(parents=True, exist_ok=True)
 
     def test_rejects_non_object_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -325,13 +326,46 @@ class ManifestTests(unittest.TestCase):
                         "displayName": "Plugin",
                         "shortDescription": "Plugin description",
                         "longDescription": "Longer plugin description",
-                        "defaultPrompt": ["Use the plugin."],
+                        "defaultPrompt": ["Use $plugin:example to do the work."],
                     },
                 },
             )
             errors: list[str] = []
             validator.validate_manifest(errors, root)
             self.assertFalse(errors)
+
+    def test_rejects_unknown_or_extended_starter_skill(self) -> None:
+        for prompt in (
+            "Use $plugin:not-a-skill to do the work.",
+            "Use $plugin:example-typo to do the work.",
+            "Use $plugin:Example to do the work.",
+            "Use $plugin:example:extra to do the work.",
+            "Use $plugin:example and $plugin:BAD to do the work.",
+        ):
+            with (
+                self.subTest(prompt=prompt),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                root = Path(temporary) / "plugin"
+                self.write_manifest(
+                    root,
+                    {
+                        "name": "plugin",
+                        "version": "1.0.0",
+                        "skills": "./skills/",
+                        "interface": {
+                            "displayName": "Plugin",
+                            "shortDescription": "Plugin description",
+                            "longDescription": "Longer plugin description",
+                            "defaultPrompt": [prompt],
+                        },
+                    },
+                )
+                errors: list[str] = []
+                validator.validate_manifest(errors, root)
+                self.assertTrue(
+                    any("unknown skill invocation" in error for error in errors)
+                )
 
     def test_rejects_prerelease_numeric_identifiers_with_leading_zeroes(self) -> None:
         for version in ("1.0.0-01", "1.0.0-alpha.01"):
@@ -350,7 +384,9 @@ class ManifestTests(unittest.TestCase):
                             "displayName": "Plugin",
                             "shortDescription": "Plugin description",
                             "longDescription": "Longer plugin description",
-                            "defaultPrompt": ["Use the plugin."],
+                            "defaultPrompt": [
+                                "Use $plugin:example to do the work."
+                            ],
                         },
                     },
                 )
@@ -362,6 +398,83 @@ class ManifestTests(unittest.TestCase):
 
 
 class SkillBundleTests(unittest.TestCase):
+    def test_rejects_unqualified_invocations_in_project_guidance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "anvil-edit-development"
+            (plugin_root / "skills" / "refresh-product-guidance").mkdir(
+                parents=True
+            )
+            agents_path = plugin_root / "AGENTS.md"
+            agents_path.write_text(
+                "Use $refresh-product-guidance before handoff.\n",
+                encoding="utf-8",
+            )
+
+            errors: list[str] = []
+            checked = validator.validate_guidance_invocations(
+                errors, plugin_root, [agents_path]
+            )
+
+            self.assertEqual(checked, 1)
+            self.assertTrue(
+                any("must be plugin-qualified" in error for error in errors)
+            )
+
+    def test_ignores_non_skill_dollar_tokens_in_project_guidance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "anvil-edit-development"
+            (plugin_root / "skills" / "refresh-product-guidance").mkdir(
+                parents=True
+            )
+            agents_path = plugin_root / "AGENTS.md"
+            agents_path.write_text(
+                "The budget is $100 and the shell variable is $model.\n",
+                encoding="utf-8",
+            )
+
+            errors: list[str] = []
+            checked = validator.validate_guidance_invocations(
+                errors, plugin_root, [agents_path]
+            )
+
+            self.assertEqual(checked, 1)
+            self.assertFalse(errors)
+
+    def test_requires_plugin_qualified_default_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            skill_root = Path(temporary) / "skills" / "refresh-product-guidance"
+            skill_root.mkdir(parents=True)
+            (skill_root / "SKILL.md").write_text(
+                "---\n"
+                "name: refresh-product-guidance\n"
+                "description: Keep project guidance aligned.\n"
+                "---\n\n"
+                "# Refresh Product Guidance\n",
+                encoding="utf-8",
+            )
+            agent_path = skill_root / "agents" / "openai.yaml"
+            agent_path.parent.mkdir()
+            agent_path.write_text(
+                'interface:\n'
+                '  display_name: "Refresh Product Guidance"\n'
+                '  short_description: "Keep project guidance aligned over time"\n'
+                '  default_prompt: "Use $refresh-product-guidance now."\n'
+                'policy:\n'
+                '  allow_implicit_invocation: false\n',
+                encoding="utf-8",
+            )
+
+            errors: list[str] = []
+            count = validator.validate_skills(errors, skill_root.parent)
+
+            self.assertEqual(count, 1)
+            self.assertTrue(
+                any(
+                    "$anvil-edit-development:refresh-product-guidance" in error
+                    for error in errors
+                )
+            )
+
     def test_reports_unreadable_agent_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             skill_root = Path(temporary) / "skills" / "refresh-product-guidance"

@@ -23,6 +23,11 @@ SEMVER_RE = re.compile(
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 AGENT_STRING_FIELD_RE = re.compile(r'^  ([a-z_]+):\s*("(?:[^"\\]|\\.)*")$')
 AGENT_BOOL_FIELD_RE = re.compile(r"^  ([a-z_]+):\s*(true|false)$")
+QUALIFIED_SKILL_INVOCATION_RE = re.compile(
+    r"^\$([a-z0-9]+(?:-[a-z0-9]+)*):"
+    r"([a-z0-9]+(?:-[a-z0-9]+)*)$"
+)
+SKILL_TOKEN_CANDIDATE_RE = re.compile(r"\$[A-Za-z0-9][A-Za-z0-9:-]*")
 WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 REFERENCE_DEFINITION_RE = re.compile(r"^ {0,3}\[((?:\\.|[^\]])+)\]:\s*(.*)$")
 FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
@@ -42,6 +47,79 @@ RAW_LINE_ABSOLUTE_RE = re.compile(r"^\s*<?(?:[\\/]|file:)", re.IGNORECASE)
 
 def fail(errors: list[str], message: str) -> None:
     errors.append(message)
+
+
+def skill_names(plugin_root: Path) -> set[str]:
+    skills_root = plugin_root / "skills"
+    if not skills_root.is_dir():
+        return set()
+    return {path.name for path in skills_root.iterdir() if path.is_dir()}
+
+
+def classify_skill_invocations(
+    text: str, plugin_root: Path
+) -> tuple[list[tuple[str, str]], list[str], list[str]]:
+    expected_plugin = plugin_root.name
+    known_skills = skill_names(plugin_root)
+    known_casefolded = {name.casefold() for name in known_skills}
+    qualified: list[tuple[str, str]] = []
+    unqualified: list[str] = []
+    invalid: list[str] = []
+
+    for token in SKILL_TOKEN_CANDIDATE_RE.findall(text):
+        body = token[1:]
+        if ":" not in body:
+            if body.casefold() in known_casefolded:
+                unqualified.append(token)
+            continue
+
+        plugin_name = body.split(":", 1)[0]
+        if plugin_name.casefold() != expected_plugin.casefold():
+            continue
+
+        match = QUALIFIED_SKILL_INVOCATION_RE.fullmatch(token)
+        if not match:
+            invalid.append(token)
+            continue
+        matched_plugin, matched_skill = match.groups()
+        if matched_plugin != expected_plugin or matched_skill not in known_skills:
+            invalid.append(token)
+            continue
+        qualified.append((matched_plugin, matched_skill))
+
+    return qualified, unqualified, invalid
+
+
+def validate_invocation_text(
+    errors: list[str],
+    path: Path,
+    text: str,
+    plugin_root: Path,
+    *,
+    require_one: bool = False,
+) -> None:
+    expected_plugin = plugin_root.name
+    invocations, unqualified, invalid = classify_skill_invocations(
+        text, plugin_root
+    )
+
+    if unqualified:
+        fail(
+            errors,
+            f"{path}: skill invocations must be plugin-qualified: "
+            + ", ".join(sorted(set(unqualified))),
+        )
+    if invalid:
+        fail(
+            errors,
+            f"{path}: unknown skill invocation: {', '.join(sorted(set(invalid)))}",
+        )
+    if require_one and (len(invocations) != 1 or unqualified or invalid):
+        fail(
+            errors,
+            f"{path}: prompt must invoke exactly one existing "
+            f"${expected_plugin}:<skill>",
+        )
 
 
 def parse_frontmatter(
@@ -101,6 +179,11 @@ def validate_manifest(errors: list[str], plugin_root: Path = PLUGIN_ROOT) -> Non
         )
     ):
         fail(errors, f"{path}: interface.defaultPrompt must contain 1-3 strings")
+    else:
+        for prompt in default_prompts:
+            validate_invocation_text(
+                errors, path, prompt, plugin_root, require_one=True
+            )
 
 
 def parse_agent_yaml(
@@ -236,12 +319,48 @@ def validate_skills(errors: list[str], skills_root: Path = SKILLS_ROOT) -> int:
         ):
             fail(errors, f"{agent_path}: short_description must be 25-64 characters")
         default_prompt = agent_values.get("default_prompt", "")
+        qualified_skill_name = (PLUGIN_ROOT.name, directory.name)
+        (
+            default_prompt_invocations,
+            unqualified_invocations,
+            invalid_invocations,
+        ) = (
+            classify_skill_invocations(default_prompt, PLUGIN_ROOT)
+            if isinstance(default_prompt, str)
+            else ([], [], [])
+        )
         if (
-            not isinstance(default_prompt, str)
-            or f"${directory.name}" not in default_prompt
+            default_prompt_invocations != [qualified_skill_name]
+            or unqualified_invocations
+            or invalid_invocations
         ):
-            fail(errors, f"{agent_path}: default_prompt must name ${directory.name}")
+            fail(
+                errors,
+                f"{agent_path}: default_prompt must name exactly "
+                f"${qualified_skill_name[0]}:{qualified_skill_name[1]}",
+            )
     return count
+
+
+def validate_guidance_invocations(
+    errors: list[str],
+    plugin_root: Path = PLUGIN_ROOT,
+    files: list[Path] | None = None,
+) -> int:
+    if files is None:
+        files = [REPO_ROOT / "AGENTS.md"]
+        files.extend((plugin_root / "skills").glob("*/SKILL.md"))
+
+    checked = 0
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            fail(errors, f"{path}: cannot read invocation guidance: {exc}")
+            continue
+        checked += 1
+        validate_invocation_text(errors, path, text, plugin_root)
+    return checked
 
 
 def markdown_target(raw_target: str, path: Path, errors: list[str]) -> str | None:
@@ -522,6 +641,7 @@ def main() -> int:
     errors: list[str] = []
     validate_manifest(errors)
     skill_count = validate_skills(errors)
+    validate_guidance_invocations(errors)
     link_count = validate_local_links(errors)
     if errors:
         for error in errors:

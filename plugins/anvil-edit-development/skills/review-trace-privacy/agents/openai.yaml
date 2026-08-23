@@ -1,6 +1,6 @@
 interface:
   display_name: "Review Trace Privacy"
   short_description: "Audit trace permissions, retention, and trust"
-  default_prompt: "Use $review-trace-privacy to review an Anvil Edit trace or destination design."
+  default_prompt: "Use $anvil-edit-development:review-trace-privacy to review an Anvil Edit trace or destination design."
 policy:
   allow_implicit_invocation: false

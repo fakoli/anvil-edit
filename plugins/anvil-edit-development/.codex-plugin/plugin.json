@@ -1,6 +1,6 @@
 {
   "name": "anvil-edit-development",
-  "version": "0.2.0+codex.20260823220953",
+  "version": "0.2.0+codex.20260823221751",
   "description": "Living review and planning skills for building Anvil Edit without weakening its evidence, privacy, or editor contracts.",
   "author": {
     "name": "Fakoli",
@@ -27,9 +27,9 @@
       "Documentation"
     ],
     "defaultPrompt": [
-      "Audit an editor adapter or review a prediction or trace-privacy contract.",
-      "Design a reproducible predictive-editing experiment or assess a model candidate.",
-      "Refresh product documents and development skills after an authorized change."
+      "Use $anvil-edit-development:audit-editor-adapter to audit an editor adapter.",
+      "Use $anvil-edit-development:design-edit-experiment to design a predictive-editing experiment.",
+      "Use $anvil-edit-development:refresh-product-guidance after an authorized product change."
     ]
   }
 }
