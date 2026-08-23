@@ -41,6 +41,6 @@ technical checklist.
 
 After an authorized change alters data classes, grants, trust boundaries,
 retention, erasure, export, or aggregation rules, use
-`$refresh-product-guidance` before handoff. Update this skill in the same change
-when its trigger or checklist is stale. On read-only review, report drift
-without editing repository files.
+`$anvil-edit-development:refresh-product-guidance` before handoff. Update this
+skill in the same change when its trigger or checklist is stale. On read-only
+review, report drift without editing repository files.

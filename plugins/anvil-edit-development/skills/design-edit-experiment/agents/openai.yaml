@@ -1,6 +1,6 @@
 interface:
   display_name: "Design Edit Experiment"
   short_description: "Design causal and reproducible edit evaluations"
-  default_prompt: "Use $design-edit-experiment to design a staged Anvil Edit evaluation."
+  default_prompt: "Use $anvil-edit-development:design-edit-experiment to design a staged Anvil Edit evaluation."
 policy:
   allow_implicit_invocation: false

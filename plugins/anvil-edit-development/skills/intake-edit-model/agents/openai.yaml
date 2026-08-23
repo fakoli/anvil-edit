@@ -1,6 +1,6 @@
 interface:
   display_name: "Intake Edit Model"
   short_description: "Classify model evidence before local qualification"
-  default_prompt: "Use $intake-edit-model to assess a predictive editing model candidate."
+  default_prompt: "Use $anvil-edit-development:intake-edit-model to assess a predictive editing model candidate."
 policy:
   allow_implicit_invocation: false

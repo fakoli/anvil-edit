@@ -1,6 +1,6 @@
 interface:
   display_name: "Audit Editor Adapter"
   short_description: "Test editor capabilities against the Core contract"
-  default_prompt: "Use $audit-editor-adapter to assess an editor API against the Anvil Edit adapter contract."
+  default_prompt: "Use $anvil-edit-development:audit-editor-adapter to assess an editor API against the Anvil Edit adapter contract."
 policy:
   allow_implicit_invocation: false

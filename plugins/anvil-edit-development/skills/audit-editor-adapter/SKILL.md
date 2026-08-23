@@ -42,9 +42,10 @@ document reopen or synthesize outcome evidence the editor does not expose.
 ## Keep this skill current
 
 After an authorized change alters the adapter contract or evidence standard,
-use `$refresh-product-guidance` before handoff. Update this skill in the same
-change when its trigger, matrix, gate, or evidence wording is stale. On a
-read-only audit, report drift without editing repository files.
+use `$anvil-edit-development:refresh-product-guidance` before handoff. Update
+this skill in the same change when its trigger, matrix, gate, or evidence
+wording is stale. On a read-only audit, report drift without editing repository
+files.
 
 ## Portability gate
 
