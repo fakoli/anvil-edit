@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Edit Experiment"
+  short_description: "Design causal and reproducible edit evaluations"
+  default_prompt: "Use $design-edit-experiment to design a staged Anvil Edit evaluation."
