@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Prediction Contracts"
+  short_description: "Find unsafe gaps in predictive edit contracts"
+  default_prompt: "Use $review-prediction-contracts to adversarially review an Anvil Edit contract change."

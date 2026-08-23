@@ -1,0 +1,26 @@
+{
+  "name": "anvil-edit-development",
+  "version": "0.1.0",
+  "description": "Review and planning skills for building Anvil Edit without weakening its evidence, privacy, or editor contracts.",
+  "author": {
+    "name": "Fakoli",
+    "url": "https://github.com/fakoli"
+  },
+  "homepage": "https://github.com/fakoli/anvil-edit",
+  "repository": "https://github.com/fakoli/anvil-edit",
+  "keywords": ["predictive-editing", "evaluation", "local-first", "developer-tools"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Anvil Edit Development",
+    "shortDescription": "Build predictive editing with explicit evidence gates.",
+    "longDescription": "Repository-local workflows for auditing editor adapters, reviewing prediction and privacy contracts, designing staged evaluations, and admitting model candidates as discovery rather than local qualification.",
+    "developerName": "Fakoli",
+    "category": "Developer Tools",
+    "capabilities": ["Review", "Planning"],
+    "defaultPrompt": [
+      "Audit an editor adapter against the Anvil Edit contract.",
+      "Review a prediction or trace-privacy contract change.",
+      "Design a reproducible predictive-editing experiment."
+    ]
+  }
+}

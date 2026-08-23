@@ -1,0 +1,43 @@
+---
+name: review-prediction-contracts
+description: Adversarially review Anvil Edit lifecycle, wire, persistence, and integration contracts. Use when schemas, candidate application, routing, retries, evidence ownership, or product boundaries change before implementation or promotion.
+---
+
+# Review Prediction Contracts
+
+## Review order
+
+1. Read `docs/PROJECT.md`, `docs/CONTRACTS.md`, `docs/ARCHITECTURE.md`,
+   `docs/PRIVACY-AND-TRUST.md`, `docs/EVALUATION.md`, and
+   `docs/DECISIONS.md`.
+2. Trace one opportunity from snapshot through dispatch, grant, request,
+   candidate, decision, presentation, application, and survival.
+3. Attack each boundary with stale state, duplicate/out-of-order delivery,
+   retry/fallback, deadline expiry, missing evidence, hostile protocol output,
+   partial application, deletion, and schema-upgrade cases.
+4. Separate a missing contract from an implementation defect and from an
+   unproven product hypothesis.
+5. Return findings ordered by severity with evidence, affected invariant, and
+   the smallest acceptance test that would close each gap.
+
+## Load-bearing checks
+
+- `DocumentRevision` includes incarnation, URI scheme, version namespace,
+  encoding/canonicalization, range semantics, and full-buffer digest.
+- `ExecutionGrant` is resolved before serialization and names destination,
+  purpose, mode, content classes, policy digest, and expiry.
+- Attempts carry causal parents, producer sequence/clock, idempotency, and
+  explicit retry/race/fallback relations.
+- Context dependencies distinguish application-critical, display-critical,
+  and advisory freshness.
+- Raw model output is bounded, parsed as untrusted input, and never rendered or
+  executed directly.
+- Serving and Edit evidence have one correlation seam, explicit ownership, and
+  conflict behavior.
+- Immutable evidence remains subject to authorized physical erasure.
+- Multi-document atomicity is never implied when an editor cannot provide it.
+
+Do not approve semantic routing, cross-file application, source persistence,
+remote dispatch, training, steering, or fleet scope by adjacency. When an
+authorized change moves an invariant or boundary, update the canonical document
+and append a decision record.
