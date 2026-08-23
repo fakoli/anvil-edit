@@ -15,7 +15,8 @@ REPO_ROOT = PLUGIN_ROOT.parents[1]
 SKILLS_ROOT = PLUGIN_ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
-AGENT_FIELD_RE = re.compile(r'^  ([a-z_]+):\s*("(?:[^"\\]|\\.)*")$')
+AGENT_STRING_FIELD_RE = re.compile(r'^  ([a-z_]+):\s*("(?:[^"\\]|\\.)*")$')
+AGENT_BOOL_FIELD_RE = re.compile(r"^  ([a-z_]+):\s*(true|false)$")
 WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 REFERENCE_DEFINITION_RE = re.compile(r"^ {0,3}\[((?:\\.|[^\]])+)\]:\s*(.*)$")
 FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
@@ -23,6 +24,7 @@ FENCE_CLOSE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})[ \t]*$")
 BLOCKQUOTE_RE = re.compile(r"^ {0,3}>[ \t]?")
 LIST_MARKER_RE = re.compile(r"^ {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+")
 AGENT_KEYS = {"display_name", "short_description", "default_prompt"}
+AGENT_POLICY_KEYS = {"allow_implicit_invocation"}
 EXTERNAL_SCHEMES = {"http", "https", "mailto"}
 REQUIRED_SKILLS = {"refresh-product-guidance"}
 RAW_DRIVE_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]")
@@ -36,8 +38,9 @@ def fail(errors: list[str], message: str) -> None:
     errors.append(message)
 
 
-def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:
-    text = path.read_text(encoding="utf-8")
+def parse_frontmatter(
+    text: str, path: Path, errors: list[str]
+) -> dict[str, str]:
     match = FRONTMATTER_RE.match(text)
     if not match:
         fail(errors, f"{path}: missing YAML frontmatter")
@@ -84,7 +87,9 @@ def validate_manifest(errors: list[str], plugin_root: Path = PLUGIN_ROOT) -> Non
             fail(errors, f"{path}: missing interface.{key}")
 
 
-def parse_agent_yaml(text: str, path: Path, errors: list[str]) -> dict[str, str]:
+def parse_agent_yaml(
+    text: str, path: Path, errors: list[str]
+) -> dict[str, str | bool]:
     """Parse the intentionally strict, dependency-free agent metadata subset."""
 
     lines = [line for line in text.splitlines() if line.strip()]
@@ -92,35 +97,71 @@ def parse_agent_yaml(text: str, path: Path, errors: list[str]) -> dict[str, str]
         fail(errors, f"{path}: first non-empty line must be interface:")
         return {}
 
-    values: dict[str, str] = {}
-    for line in lines[1:]:
+    values: dict[str, str | bool] = {}
+    sections: set[str] = set()
+    section: str | None = None
+    for line in lines:
         if "\t" in line:
             fail(errors, f"{path}: tabs are not allowed")
             continue
-        match = AGENT_FIELD_RE.fullmatch(line)
-        if not match:
-            fail(errors, f"{path}: invalid interface field or indentation: {line}")
+
+        if not line.startswith(" "):
+            if line not in {"interface:", "policy:"}:
+                fail(errors, f"{path}: unsupported root field: {line}")
+                section = None
+                continue
+            section = line[:-1]
+            if section in sections:
+                fail(errors, f"{path}: duplicate root field: {section}")
+            sections.add(section)
             continue
-        key, quoted_value = match.groups()
+
+        if section == "interface":
+            match = AGENT_STRING_FIELD_RE.fullmatch(line)
+            if not match:
+                fail(errors, f"{path}: invalid interface field or indentation: {line}")
+                continue
+            key, encoded_value = match.groups()
+            try:
+                value: str | bool = json.loads(encoded_value)
+            except json.JSONDecodeError as exc:
+                fail(errors, f"{path}: invalid quoted value for {key}: {exc.msg}")
+                continue
+        elif section == "policy":
+            match = AGENT_BOOL_FIELD_RE.fullmatch(line)
+            if not match:
+                fail(errors, f"{path}: invalid policy field or indentation: {line}")
+                continue
+            key, encoded_value = match.groups()
+            value = encoded_value == "true"
+        else:
+            fail(errors, f"{path}: field appears outside a supported section: {line}")
+            continue
+
         if key in values:
-            fail(errors, f"{path}: duplicate interface field: {key}")
-            continue
-        try:
-            value = json.loads(quoted_value)
-        except json.JSONDecodeError as exc:
-            fail(errors, f"{path}: invalid quoted value for {key}: {exc.msg}")
+            fail(errors, f"{path}: duplicate agent field: {key}")
             continue
         values[key] = value
 
     missing = AGENT_KEYS - values.keys()
-    extra = values.keys() - AGENT_KEYS
+    missing_policy = AGENT_POLICY_KEYS - values.keys()
+    extra = values.keys() - AGENT_KEYS - AGENT_POLICY_KEYS
     if missing:
         fail(errors, f"{path}: missing interface fields: {', '.join(sorted(missing))}")
+    if missing_policy:
+        fail(errors, f"{path}: missing policy fields: {', '.join(sorted(missing_policy))}")
     if extra:
-        fail(errors, f"{path}: unsupported interface fields: {', '.join(sorted(extra))}")
+        fail(errors, f"{path}: unsupported agent fields: {', '.join(sorted(extra))}")
     for key in sorted(AGENT_KEYS & values.keys()):
-        if not values[key].strip():
+        value = values[key]
+        if not isinstance(value, str) or not value.strip():
             fail(errors, f"{path}: interface field must not be blank: {key}")
+    if values.get("allow_implicit_invocation") is not False:
+        fail(
+            errors,
+            f"{path}: policy.allow_implicit_invocation must be false for "
+            "explicit-only loading",
+        )
     return values
 
 
@@ -144,8 +185,12 @@ def validate_skills(errors: list[str], skills_root: Path = SKILLS_ROOT) -> int:
             fail(errors, f"{directory}: missing SKILL.md")
             continue
 
-        text = skill_path.read_text(encoding="utf-8")
-        values = parse_frontmatter(skill_path, errors)
+        try:
+            text = skill_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            fail(errors, f"{skill_path}: cannot read skill metadata: {exc}")
+            continue
+        values = parse_frontmatter(text, skill_path, errors)
         if set(values) != {"name", "description"}:
             fail(errors, f"{skill_path}: frontmatter must contain only name and description")
         if values.get("name") != directory.name or not NAME_RE.fullmatch(directory.name):
@@ -160,13 +205,25 @@ def validate_skills(errors: list[str], skills_root: Path = SKILLS_ROOT) -> int:
         if not agent_path.is_file():
             fail(errors, f"{directory}: missing agents/openai.yaml")
             continue
+        try:
+            agent_text = agent_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            fail(errors, f"{agent_path}: cannot read agent metadata: {exc}")
+            continue
         agent_values = parse_agent_yaml(
-            agent_path.read_text(encoding="utf-8"), agent_path, errors
+            agent_text, agent_path, errors
         )
         short_description = agent_values.get("short_description", "")
-        if not 25 <= len(short_description) <= 64:
+        if (
+            not isinstance(short_description, str)
+            or not 25 <= len(short_description) <= 64
+        ):
             fail(errors, f"{agent_path}: short_description must be 25-64 characters")
-        if f"${directory.name}" not in agent_values.get("default_prompt", ""):
+        default_prompt = agent_values.get("default_prompt", "")
+        if (
+            not isinstance(default_prompt, str)
+            or f"${directory.name}" not in default_prompt
+        ):
             fail(errors, f"{agent_path}: default_prompt must name ${directory.name}")
     return count
 

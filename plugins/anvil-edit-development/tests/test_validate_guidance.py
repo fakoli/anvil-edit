@@ -17,7 +17,7 @@ SPEC.loader.exec_module(validator)
 
 
 class AgentYamlTests(unittest.TestCase):
-    def parse(self, text: str) -> tuple[dict[str, str], list[str]]:
+    def parse(self, text: str) -> tuple[dict[str, str | bool], list[str]]:
         errors: list[str] = []
         values = validator.parse_agent_yaml(text, Path("openai.yaml"), errors)
         return values, errors
@@ -28,9 +28,12 @@ class AgentYamlTests(unittest.TestCase):
             '  display_name: "Example Skill"\n'
             '  short_description: "Describe this example skill"\n'
             '  default_prompt: "Use $example-skill to do the work."\n'
+            'policy:\n'
+            '  allow_implicit_invocation: false\n'
         )
         self.assertFalse(errors)
         self.assertEqual(values["display_name"], "Example Skill")
+        self.assertIs(values["allow_implicit_invocation"], False)
 
     def test_rejects_wrong_nesting_and_duplicate_keys(self) -> None:
         _, errors = self.parse(
@@ -58,6 +61,29 @@ class AgentYamlTests(unittest.TestCase):
             '  default_prompt: "Use $example-skill to do the work."\n'
         )
         self.assertTrue(errors)
+
+    def test_requires_explicit_only_policy(self) -> None:
+        _, missing_errors = self.parse(
+            'interface:\n'
+            '  display_name: "Example Skill"\n'
+            '  short_description: "Describe this example skill"\n'
+            '  default_prompt: "Use $example-skill to do the work."\n'
+        )
+        self.assertTrue(
+            any("missing policy fields" in error for error in missing_errors)
+        )
+
+        _, implicit_errors = self.parse(
+            'interface:\n'
+            '  display_name: "Example Skill"\n'
+            '  short_description: "Describe this example skill"\n'
+            '  default_prompt: "Use $example-skill to do the work."\n'
+            'policy:\n'
+            '  allow_implicit_invocation: true\n'
+        )
+        self.assertTrue(
+            any("must be false" in error for error in implicit_errors)
+        )
 
 
 class LinkValidationTests(unittest.TestCase):
@@ -265,6 +291,30 @@ class ManifestTests(unittest.TestCase):
 
 
 class SkillBundleTests(unittest.TestCase):
+    def test_reports_unreadable_agent_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            skill_root = Path(temporary) / "skills" / "refresh-product-guidance"
+            skill_root.mkdir(parents=True)
+            (skill_root / "SKILL.md").write_text(
+                "---\n"
+                "name: refresh-product-guidance\n"
+                "description: Keep project guidance aligned.\n"
+                "---\n\n"
+                "# Refresh Product Guidance\n",
+                encoding="utf-8",
+            )
+            agent_path = skill_root / "agents" / "openai.yaml"
+            agent_path.parent.mkdir()
+            agent_path.write_bytes(b"\xff")
+
+            errors: list[str] = []
+            count = validator.validate_skills(errors, skill_root.parent)
+
+            self.assertEqual(count, 1)
+            self.assertTrue(
+                any("cannot read agent metadata" in error for error in errors)
+            )
+
     def test_requires_manual_fallback_skill(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             skills_root = Path(temporary) / "skills"
