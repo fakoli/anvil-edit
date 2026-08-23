@@ -41,3 +41,10 @@ Do not approve semantic routing, cross-file application, source persistence,
 remote dispatch, training, steering, or fleet scope by adjacency. When an
 authorized change moves an invariant or boundary, update the canonical document
 and append a decision record.
+
+## Keep this skill current
+
+After an authorized contract or boundary change, use
+`$refresh-product-guidance` before handoff. Update this skill in the same change
+when its trigger, review order, or load-bearing checks are stale. On read-only
+review, report drift without editing repository files.

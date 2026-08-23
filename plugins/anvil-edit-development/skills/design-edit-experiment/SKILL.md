@@ -41,3 +41,10 @@ predeclared rule applies.
 Treat LLM judges as secondary: pin identity, blind and randomize candidate
 order, and calibrate on a declared human sample. Treat commit correlation as an
 exploratory proxy when attribution is lost.
+
+## Keep this skill current
+
+After an authorized change alters the evidence ladder, metrics, experiment
+gates, or reporting rules, use `$refresh-product-guidance` before handoff.
+Update this skill in the same change when its trigger or workflow is stale. On
+read-only experiment design, report drift without editing repository files.

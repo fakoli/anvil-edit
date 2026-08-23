@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refresh Product Guidance"
+  short_description: "Keep product docs and skills aligned over time"
+  default_prompt: "Use $refresh-product-guidance to align Anvil Edit documentation and development skills with the latest authorized product change."

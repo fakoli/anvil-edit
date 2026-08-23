@@ -36,3 +36,10 @@ This skill is read-only unless the user separately authorizes download,
 conversion, serving, route mutation, benchmarking on live hardware, or
 promotion. Keep private host assignments and active aliases out of public
 artifacts.
+
+## Keep this skill current
+
+After an authorized change alters model roles, admission evidence, serving
+boundaries, or benchmark requirements, use `$refresh-product-guidance` before
+handoff. Update this skill in the same change when its trigger or workflow is
+stale. On read-only intake, report drift without editing repository files.

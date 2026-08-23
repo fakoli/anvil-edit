@@ -36,3 +36,11 @@ minimum cohort/dimensionality thresholds and suppress sparse cells.
 Block source-bearing persistence or remote inference until the relevant grant,
 threat, and erasure tests exist. Do not make legal or compliance claims from a
 technical checklist.
+
+## Keep this skill current
+
+After an authorized change alters data classes, grants, trust boundaries,
+retention, erasure, export, or aggregation rules, use
+`$refresh-product-guidance` before handoff. Update this skill in the same change
+when its trigger or checklist is stale. On read-only review, report drift
+without editing repository files.

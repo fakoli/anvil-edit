@@ -11,6 +11,28 @@ product behavior or introducing implementation:
 6. `docs/DECISIONS.md`
 7. `docs/ROADMAP.md`
 
+## Living product guidance
+
+- After an authorized change to product behavior, contracts, architecture,
+  evaluation, privacy, roadmap, PRDs, or implementation surfaces, use the
+  repository plugin's `refresh-product-guidance` workflow before handoff. When
+  the plugin is not installed, read and follow
+  `plugins/anvil-edit-development/skills/refresh-product-guidance/SKILL.md`
+  directly. Do not install or publish the plugin merely to satisfy this gate.
+- Map the change to its canonical document first, then update affected PRDs,
+  development skills, agent metadata, and the public README in the same PR when
+  their guidance changed.
+- Implementation authority does not authorize moving a canonical product
+  boundary, invariant, metric, promotion gate, or accepted decision. Stop and
+  report a conflict unless the current task explicitly authorizes that product
+  decision. Explicit task file and scope limits override this refresh workflow;
+  report out-of-scope drift without editing it.
+- Keep the README short and understandable without requiring editor, model-
+  serving, or evaluation expertise. Put normative detail in `docs/`.
+- On read-only work, report documentation or skill drift without editing it.
+- Do not claim an unattended updater exists. Guidance refreshes are explicit,
+  reviewable repository changes backed by current evidence.
+
 ## Evidence discipline
 
 - Keep discovery, source claims, local replay, live shadowing, visible dogfood,
