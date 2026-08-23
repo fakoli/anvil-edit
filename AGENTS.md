@@ -15,7 +15,7 @@ product behavior or introducing implementation:
 
 - After an authorized change to product behavior, contracts, architecture,
   evaluation, privacy, roadmap, PRDs, or implementation surfaces, use the
-  repository plugin's `refresh-product-guidance` workflow before handoff. When
+  repository plugin's `$refresh-product-guidance` workflow before handoff. When
   the plugin is not installed, read and follow
   `plugins/anvil-edit-development/skills/refresh-product-guidance/SKILL.md`
   directly. Do not install or publish the plugin merely to satisfy this gate.
@@ -32,6 +32,27 @@ product behavior or introducing implementation:
 - On read-only work, report documentation or skill drift without editing it.
 - Do not claim an unattended updater exists. Guidance refreshes are explicit,
   reviewable repository changes backed by current evidence.
+
+## Project development skills
+
+When installed, the `anvil-edit-development` plugin is user-scoped. Every
+bundled skill sets `policy.allow_implicit_invocation: false`, so its
+instructions are loaded only through an explicit `$skill` invocation. This
+repository guidance supplies the project-specific invocation rules: use these
+workflows while working here when their scope matches.
+
+- `$audit-editor-adapter` for editor selection and compatibility reviews;
+- `$design-edit-experiment` for replay, shadow, dogfood, or promotion studies;
+- `$intake-edit-model` for candidate artifact and benchmark admission;
+- `$review-prediction-contracts` for lifecycle and integration contracts;
+- `$review-trace-privacy` for trace, destination, retention, or export changes;
+  and
+- `$refresh-product-guidance` after authorized product or implementation
+  changes.
+
+Do not make these skills implicitly invocable merely for convenience. New
+skills in this plugin must use the same explicit-only policy. Outside this
+repository, invoke one only when the user explicitly names it.
 
 ## Evidence discipline
 
