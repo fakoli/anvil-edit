@@ -289,6 +289,77 @@ class ManifestTests(unittest.TestCase):
             validator.validate_manifest(errors, root)
             self.assertTrue(errors)
 
+    def test_rejects_more_than_three_default_prompts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "plugin"
+            self.write_manifest(
+                root,
+                {
+                    "name": "plugin",
+                    "version": "1.0.0",
+                    "skills": "./skills/",
+                    "interface": {
+                        "displayName": "Plugin",
+                        "shortDescription": "Plugin description",
+                        "longDescription": "Longer plugin description",
+                        "defaultPrompt": ["one", "two", "three", "four"],
+                    },
+                },
+            )
+            errors: list[str] = []
+            validator.validate_manifest(errors, root)
+            self.assertTrue(
+                any("defaultPrompt must contain 1-3" in error for error in errors)
+            )
+
+    def test_accepts_codex_cachebuster_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "plugin"
+            self.write_manifest(
+                root,
+                {
+                    "name": "plugin",
+                    "version": "0.2.0+codex.20260823220953",
+                    "skills": "./skills/",
+                    "interface": {
+                        "displayName": "Plugin",
+                        "shortDescription": "Plugin description",
+                        "longDescription": "Longer plugin description",
+                        "defaultPrompt": ["Use the plugin."],
+                    },
+                },
+            )
+            errors: list[str] = []
+            validator.validate_manifest(errors, root)
+            self.assertFalse(errors)
+
+    def test_rejects_prerelease_numeric_identifiers_with_leading_zeroes(self) -> None:
+        for version in ("1.0.0-01", "1.0.0-alpha.01"):
+            with (
+                self.subTest(version=version),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                root = Path(temporary) / "plugin"
+                self.write_manifest(
+                    root,
+                    {
+                        "name": "plugin",
+                        "version": version,
+                        "skills": "./skills/",
+                        "interface": {
+                            "displayName": "Plugin",
+                            "shortDescription": "Plugin description",
+                            "longDescription": "Longer plugin description",
+                            "defaultPrompt": ["Use the plugin."],
+                        },
+                    },
+                )
+                errors: list[str] = []
+                validator.validate_manifest(errors, root)
+                self.assertTrue(
+                    any("valid semantic versioning" in error for error in errors)
+                )
+
 
 class SkillBundleTests(unittest.TestCase):
     def test_reports_unreadable_agent_metadata(self) -> None:
