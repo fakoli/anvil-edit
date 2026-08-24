@@ -8,7 +8,7 @@ description: Adversarially review Anvil Edit lifecycle, wire, persistence, and i
 ## Review order
 
 1. Read `docs/PROJECT.md`, `docs/CONTRACTS.md`, `docs/ARCHITECTURE.md`,
-   `docs/DATA-MODEL.md`, `docs/PRIVACY-AND-TRUST.md`,
+   `docs/ALGORITHMS.md`, `docs/DATA-MODEL.md`, `docs/PRIVACY-AND-TRUST.md`,
    `docs/EVALUATION.md`, and `docs/DECISIONS.md`.
 2. Trace one opportunity from snapshot through dispatch, grant, request,
    candidate, decision, presentation, application, and survival.
@@ -41,6 +41,14 @@ description: Adversarially review Anvil Edit lifecycle, wire, persistence, and i
   explicit retry/race/fallback relations.
 - Context dependencies distinguish application-critical, display-critical,
   and advisory freshness.
+- A process-local generation is only a cheap cancellation/freshness guard; the
+  full `DocumentRevisionRef` remains the presentation and application fence.
+- Session mutation has one explicit owner, bounded queues and candidate sets,
+  and observable overflow/degradation; async completion order does not become
+  lifecycle order.
+- Replay applies producer-scoped idempotency and causal topological order,
+  reports missing parents/gaps/cycles, and never promotes wall time or stable
+  tie-breaking into invented causality.
 - Raw model output is bounded, parsed as untrusted input, and never rendered or
   executed directly.
 - Serving and Edit evidence have one correlation seam, explicit ownership, and

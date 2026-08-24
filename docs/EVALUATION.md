@@ -2,7 +2,7 @@
 
 Status: **normative foundation; thresholds are initial hypotheses**
 
-Last reviewed: **2026-08-23**
+Last reviewed: **2026-08-24**
 
 Anvil Edit exists to connect model and policy behavior to developer outcomes.
 No single offline metric, endpoint health check, throughput number, or vendor
@@ -87,6 +87,27 @@ The foundation default requires at least 2,000 observations in a reported
 stratum before p99 is used as a gate, yielding at least 20 expected tail
 observations. A manifest may predeclare a stricter rule. Smaller p99 estimates
 are labeled descriptive and insufficient for promotion.
+
+### Measurement algorithms and structures
+
+The live runtime may use one HDR histogram per declared latency stratum plus
+bounded counters for cheap p50-through-p99 observability. Welford's online
+algorithm may track diagnostic mean and variance. These bounded summaries do
+not replace permitted raw durations or a lossless benchmark artifact; Lab
+computes authoritative report quantiles from the retained observations when
+policy permits.
+
+Fixed-checkpoint utility uses censor-aware risk sets. Kaplan-Meier estimates
+are the initial descriptive survival method so right-censored or
+attribution-lost observations are not silently dropped or treated as failures.
+Any confirmatory inference still follows the predeclared clustered experiment
+analysis rather than treating one survival curve as universal evidence.
+
+Experiment assignment uses a predeclared seeded function over the declared
+assignment unit before policy gating. A stable assignment implementation makes
+replay reproducible, but per-opportunity randomization is not substituted for a
+developer, repository, session, or N-of-1 unit when observations can interfere.
+See [`ALGORITHMS.md`](ALGORITHMS.md) for the runtime/data-structure rationale.
 
 ## Utility and trust metrics
 

@@ -15,8 +15,10 @@ Rust workspace alongside the product definition, safety and privacy rules,
 evaluation plan, product requirements, and development skills. The code now
 defines how editing moments, permissions, suggestions, and outcomes relate
 without storing source text in ordinary records. It also proves one narrow Core
-building block: work already underway keeps the configuration identity it began
-with even if a newer identity is selected.
+building block: work already underway keeps the configuration identity and file
+revision it began with even if newer state is selected. The file-revision helper
+is only a starting primitive; the editor integration and cancellation pipeline
+do not exist yet.
 
 It is not yet a released application. It has no editor integration, model
 connection, trace database, or proven latency and usefulness results.
@@ -70,6 +72,7 @@ what deserves to grow.
 - [How we will judge whether it works](docs/EVALUATION.md)
 - [How privacy and developer control work](docs/PRIVACY-AND-TRUST.md)
 - [How the system represents editing activity](docs/DATA-MODEL.md)
+- [Why the runtime uses these algorithms and data structures](docs/ALGORITHMS.md)
 - [The validation roadmap](docs/ROADMAP.md)
 - [How the codebase is organized and checked](docs/DEVELOPMENT.md)
 

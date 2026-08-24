@@ -81,6 +81,10 @@ repository, invoke one only when the user explicitly names it.
 - Prefer narrow crates and explicit ownership over shared utility modules. New
   workspace dependencies belong in the root `Cargo.toml` and need a concrete
   owner and use case.
+- Follow the initial algorithm and data-structure defaults, complexity bounds,
+  and rollback triggers in `docs/ALGORITHMS.md`. Ephemeral generations, caches,
+  queues, and indexes must not replace semantic identity, evidence order, or
+  authorization.
 - Run the smallest affected test while iterating, then run
   `cargo xtask check`. This is the cross-platform repository gate for Rust,
   documentation, and development guidance.

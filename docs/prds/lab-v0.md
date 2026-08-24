@@ -52,12 +52,17 @@ outcomes, deployment, and promotion.
 - R015: Lab shall support authorized physical erasure of source content, linkable metadata, derived indexes/reports, and governed export copies without leaving a cross-repository correlation graph.
 - R016: Public reports shall contain only portable sanitized evidence; private traces, topology, active routes, and raw operator evidence shall remain outside the public repository.
 - R017: Reports shall distinguish configuration desired, received, staged, active, used by a request, executor-deployed, and policy-promoted states and shall not infer one from another.
+- R018: Replay shall apply producer-scoped idempotency and stable causal topological traversal, preserve independent branches without claiming global order, and report missing parents, producer-sequence gaps, cycles, duplicate identities, and conflicting evidence explicitly.
+- R019: Live bounded-memory latency summaries may use HDR histograms and online moments, but authoritative Lab quantiles shall use permitted raw or lossless observations; checkpoint survival shall retain right-censoring and use declared Kaplan-Meier risk sets for descriptive survival.
 
 ## Acceptance Criteria
 
 - A locked fixture replay produces the same canonical request/candidate inputs
   from byte-identifiable artifacts or fails with a named missing/nondeterministic
   cause.
+- Reordering delivery of the same causal fixture produces the same materialized
+  output, while an independent-branch tie-breaker is labeled deterministic
+  ordering rather than inferred causality.
 - A three-bundle campaign records two native next-edit candidates and one
   control with exact immutable identities and protocol differences visible.
 - Metric fixtures prove every funnel denominator, deadline/cancellation path,
@@ -130,21 +135,21 @@ outcomes, deployment, and promotion.
 Creates permission-aware manifests and deterministic replay across complete
 native system bundles.
 
-**Requirements:** R001, R002, R003, R004, R008, R015, R016
+**Requirements:** R001, R002, R003, R004, R008, R015, R016, R018
 
 ### F002: Metric and evidence-join engine
 
 Computes complete funnels, latency/resource distributions, candidate signals,
 and joined executor evidence without hiding missingness.
 
-**Requirements:** R005, R006, R007, R011, R012
+**Requirements:** R005, R006, R007, R011, R012, R019
 
 ### F003: Staged experiment protocol
 
 Implements common-stream assignment, exploratory/confirmatory separation,
 cluster-aware intent-to-treat analysis, censoring, and inconclusive outcomes.
 
-**Requirements:** R009, R010, R011, R013
+**Requirements:** R009, R010, R011, R013, R019
 
 ### F004: Reproducible reports and promotion gates
 
@@ -184,12 +189,16 @@ dependencies.
 **Likely files:** src/lab/replay, tests/lab/test_replay.py
 **Dependencies:** T001
 
-Reconstruct context and protocol inputs from permitted artifacts, invoke a
-pinned executor adapter, and retain deterministic/non-deterministic causes.
+Reconstruct context and protocol inputs from permitted artifacts, apply
+idempotency and stable causal topological materialization, invoke a pinned
+executor adapter, and retain deterministic/non-deterministic causes. Stable
+tie-breakers must not be reported as causal edges.
 
 **Acceptance criteria:**
 
 - Identical inputs produce byte-identifiable request and candidate records.
+- Missing parents, producer gaps, cycles, duplicate identities, and conflicts
+  are named rather than repaired from wall time or current repository state.
 - Missing content, policy, tokenizer, or runtime identity fails explicitly.
 - E3 outputs are labeled concordance/simulation, never human counterfactuals.
 
@@ -226,7 +235,9 @@ conflict records, retry groups, and dependent-gate failure behavior.
 **Dependencies:** T001, T003
 
 Implement O/E/R/C/S/A/V/K funnels, TTRS/TTUS, coverage/failure/cancellation,
-candidate signals, resource cost, and raw-distribution outputs.
+candidate signals, resource cost, and raw-distribution outputs. HDR histograms
+may support live diagnostics, but report quantiles remain reproducible from
+permitted raw or lossless observations.
 
 **Acceptance criteria:**
 
@@ -288,7 +299,7 @@ order-randomized judge protocol with human calibration artifacts.
 
 Assign before policy gating from a common stream, preserve intent-to-treat,
 cluster observations, freeze analysis plans, and represent right-censoring and
-attribution loss.
+attribution loss with declared Kaplan-Meier risk sets for descriptive survival.
 
 **Acceptance criteria:**
 

@@ -25,6 +25,25 @@ encoding must preserve the semantics and pass language-neutral fixtures. A
 database must have its own schema version, migrations, export path, retention,
 and physical-erasure tests.
 
+## Runtime structures are not durable identity
+
+Core may maintain actor-owned maps, bounded queues, recent-edit rings,
+duplicate-suppression caches, process-local revision generations, and prepared
+context indexes to meet the latency contract. Those structures are ephemeral
+implementation state. They do not become new lifecycle records, cross-process
+identity, evidence order, or permission merely because they are useful in
+memory.
+
+In particular, the local generation in `LatestRevision` is a cheap cancellation
+and late-result guard. The complete `DocumentRevisionRef` remains the portable
+fence, and the adapter must compare that exact revision before presentation or
+application. Cache keys likewise include exact revision, policy, protocol, and
+content identity and never relax a grant or freshness role.
+
+The chosen foundation algorithms and their rationale are in
+[`ALGORITHMS.md`](ALGORITHMS.md). That document does not select the still-open
+wire or durable-store schemas.
+
 ## Aggregate map
 
 | Aggregate | Primary types | Owns |
@@ -122,6 +141,14 @@ metadata, not anonymization.
 - Policy choice, serving evidence, candidate validity, show decision, actual
   presentation, application, outcome, and survival remain distinct record
   kinds.
+
+The Core crate also implements one non-durable `LatestRevision` coordination
+primitive. It validates the exact revision, advances a process-local generation
+only when the full fence changes, and rejects conflicting reuse of a revision
+record ID while that record is current. Historical identity conflicts remain a
+future materializer responsibility. This is a runtime foothold, not another
+semantic lifecycle record or proof that cancellation and editor application are
+implemented end to end.
 
 These are structural guarantees. They do not prove that an editor rechecked a
 revision, a transport serialized zero bytes after denial, a model is deployed,

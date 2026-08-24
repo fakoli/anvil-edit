@@ -54,6 +54,8 @@ program.
 - R016: A second-editor spike shall report full lifecycle capabilities separately from executor/provider compatibility, and any missing capability shall narrow the supported-editor claim.
 - R017: Flow shall not expose a semantic/gated route until shadow evidence nominates it for a separately predeclared visible experiment under a later PRD or amendment.
 - R018: Phase 0 and the final product decision shall record the initial user/buyer, current workaround, setup tolerance, privacy threshold, trace-consent posture, and whether demand centers on Flow, Lab, or both.
+- R019: The initial opportunity gate shall be a deterministic finite-state policy with bounded debounce/hysteresis, typing-velocity summary, duplicate suppression, and rate/concurrency control; every eligibility, coalescing, or suppression result shall carry source-free reasons and configured limits.
+- R020: Adapter-to-Core session coordination shall use bounded handoff and return asynchronous results with their original configuration, exact revision, local generation, cancellation, and remaining-deadline pins; completion order shall not become event order.
 
 ## Acceptance Criteria
 
@@ -61,6 +63,9 @@ program.
   for every R001 dimension.
 - Rapid typing, file switches, close/reopen, rename, UTF-16/non-BMP text, and
   line-ending changes produce zero wrong-revision application.
+- Repeated equivalent editor events are coalesced or suppressed deterministically
+  within declared bounds, and mailbox pressure cannot grow without limit or
+  silently reorder lifecycle evidence.
 - A selected-capability failure produces an observable failure or abstention;
   no alternate model appears under the same request identity.
 - Unsupported presentation modes are recorded and never silently converted
@@ -131,14 +136,14 @@ program.
 Implements the audited document, event, cancellation, presentation,
 conditional-application, outcome, IPC, and authorization contract.
 
-**Requirements:** R001, R002, R004, R006, R016
+**Requirements:** R001, R002, R004, R006, R016, R020
 
 ### F002: Restrained prediction experience
 
 Shows one explicit fast bundle through bounded normalized inline/diff/reveal
 interactions with no hidden substitution or broader action scope.
 
-**Requirements:** R003, R005, R007, R017
+**Requirements:** R003, R005, R007, R017, R019
 
 ### F003: Local controls and outcome instrumentation
 
@@ -185,12 +190,16 @@ workarounds without treating provider compatibility as lifecycle support.
 **Dependencies:** T001
 
 Connect the editor to Core with portable revisions, causal events, authenticated
-local IPC, relative budgets, protected-path checks, and cancellation.
+local IPC, relative budgets, protected-path checks, and cancellation. Feed the
+bounded single-writer session coordinator and implement the deterministic
+opportunity FSM without moving model inference into the gate.
 
 **Acceptance criteria:**
 
 - Reopen/rename/untitled/UTF-16/EOL cases emit unambiguous revisions.
 - New application-critical revisions cancel or suppress obsolete work.
+- Duplicate/debounce/rate-limit behavior is deterministic, bounded, and emits
+  source-free policy reasons.
 - No source is serialized without a valid destination grant.
 
 **Verification:**
