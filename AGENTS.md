@@ -59,6 +59,32 @@ Do not make these skills implicitly invocable merely for convenience. New
 skills in this plugin must use the same explicit-only policy. Outside this
 repository, invoke one only when the user explicitly names it.
 
+## Implementation shape
+
+- Rust owns the latency-sensitive contracts, Core policy path, deterministic
+  replay kernel, and daemon. Keep the dependency direction
+  `anvil-edit-contracts <- anvil-edit-core <- anvil-editd`.
+- `anvil-edit-contracts` contains semantic domain types only. Do not add a wire
+  encoding, IPC transport, generated bindings, or durable schema until O003 is
+  resolved and the corresponding fixtures and migration rules are accepted.
+- Editor adapters use the editor's native extension ecosystem, and Lab may use
+  analysis-oriented languages. Cross into Rust through a versioned process or
+  artifact boundary; do not introduce in-process FFI or a dynamic plug-in ABI
+  during the foundation phase.
+- No non-Rust runtime, Anvil Events client, control-plane configuration lookup,
+  unbounded repository scan, vendor model SDK, or control-plane network call
+  belongs in the opportunity-to-render hot path. Core may perform bounded,
+  authorized local context retrieval and one explicit Rust executor transport
+  after `ExecutionGrant` resolution, both under the request's relative deadline
+  and cancellation contract. Any other synchronous external I/O needs a
+  reviewed decision and latency evidence.
+- Prefer narrow crates and explicit ownership over shared utility modules. New
+  workspace dependencies belong in the root `Cargo.toml` and need a concrete
+  owner and use case.
+- Run the smallest affected test while iterating, then run
+  `cargo xtask check`. This is the cross-platform repository gate for Rust,
+  documentation, and development guidance.
+
 ## Evidence discipline
 
 - Keep discovery, source claims, local replay, live shadowing, visible dogfood,

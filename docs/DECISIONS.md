@@ -2,7 +2,7 @@
 
 Status: **working decision log**
 
-Last reviewed: **2026-08-23**
+Last reviewed: **2026-08-24**
 
 Accepted entries constrain the initial design. Open entries must be resolved
 before the phase that depends on them. Changes should append a superseding
@@ -202,6 +202,54 @@ deployment, qualification, or promotion. The identifiers are reserved design
 contracts until the upstream work and local conformance gates in
 `integrations/anvil-events.md` are implemented.
 
+### D017 — Rust hot path with polyglot process boundaries
+
+**Decision:** Rust owns the latency-sensitive contracts, Core coordination and
+policy path, deterministic replay kernel, and daemon. Editor adapters use the
+host editor's native extension ecosystem, and Lab may use Python or another
+analysis-oriented language. Non-Rust components cross versioned process or
+artifact boundaries rather than an in-process FFI or dynamic plug-in ABI during
+the foundation phase.
+
+The Rust workspace uses edition 2024 and pins toolchain 1.97.1 to reduce
+compiler and tooling drift across local and CI runs. Its initial dependency
+direction is
+`anvil-edit-contracts <- anvil-edit-core <- anvil-editd`; shared dependencies
+and verification are owned at the workspace root.
+
+**Why:** An all-TypeScript daemon would simplify one editor extension but make
+tail-latency control, bounded concurrency, and native packaging harder to
+reason about. An all-Rust repository would force editor and analysis work into
+ecosystems that already expose better native APIs. In-process FFI would reduce
+call overhead but couple crashes, authorization, packaging, and language ABIs
+before the product has measured whether that complexity helps.
+
+**Consequence:** No Node or Python runtime, Anvil Events client, control-plane
+configuration lookup, unbounded repository scan, vendor model SDK, or control-
+plane network call is a synchronous dependency of the opportunity-to-render
+path. Core may perform bounded, authorized local context retrieval and one
+explicitly selected Rust executor transport after `ExecutionGrant` resolution,
+both under the request's relative deadline and cancellation contract. Semantic
+Rust types do not settle O003's wire, IPC, executor transport, or durable-schema
+choices. The first scaffold proves only immutable local configuration-identity
+pinning, not the complete canonical `ConfigurationSnapshot`; it is not editor,
+inference, deployment, or latency evidence.
+
+**Rollback:** Language-neutral schemas and conformance fixtures remain the
+portable authority once O003 is resolved. If measurements disqualify a Rust
+component, it can be replaced behind that boundary without changing the editor
+or Lab contract; a language rewrite does not waive contract, privacy, or
+evidence gates.
+
+## Resolved foundation questions
+
+### O002 — Implementation language and process shape
+
+Resolved by D017 for the foundation: Rust owns the hot path and daemon; editor
+and analysis components remain polyglot across versioned out-of-process or
+artifact boundaries. Concrete IPC, schema, and destination identity remain open
+under O003 and O013.
+
 ## Open decisions
 
 ### O001 — First editor adapter
@@ -210,14 +258,6 @@ Choose between a deeply instrumented VS Code adapter and another editor surface
 after checking document-version, cancellation, presentation, and outcome APIs.
 Record the second-editor comparison fields at the same time. Provider
 compatibility alone is not sufficient if it hides Lab evidence.
-
-Needed by: Phase 0 exit.
-
-### O002 — Implementation language and process shape
-
-Choose the Core daemon, adapter SDK, and Lab implementation stack. The decision
-must consider low-latency IPC, parser/LSP ecosystem, portable packaging,
-SQLite/concurrency behavior, and protocol adapter reuse.
 
 Needed by: Phase 0 exit.
 

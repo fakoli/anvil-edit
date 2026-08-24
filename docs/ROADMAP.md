@@ -32,6 +32,13 @@ not this public roadmap.
 
 Target: **2026-08-24 to 2026-09-02**
 
+Implementation note (2026-08-24): D017 and the initial Rust workspace resolve
+the language/process-shape slice. The workspace currently proves only semantic
+configuration identity, atomic identity replacement, request-local pinning,
+and the repository verification harness. It does not implement the canonical
+`ConfigurationSnapshot` or satisfy the Phase 0 schema, privacy, editor,
+adopter, or fixture exit gates.
+
 Deliverables:
 
 - review and accept the product boundary;
@@ -40,7 +47,8 @@ Deliverables:
 - turn `CONTRACTS.md` into versioned draft schemas and fixtures, including
   `DocumentRevision`, `DispatchDecision`, `ExecutionGrant`, presentation,
   application, survival, causality, and dependency freshness;
-- decide implementation language and process boundaries;
+- preserve the D017 Rust/polyglot process boundary while selecting the concrete
+  schema and IPC contracts under O003;
 - define the finite repository/destination authorization policy and threat
   model;
 - choose the first editor adapter and complete a second-editor capability

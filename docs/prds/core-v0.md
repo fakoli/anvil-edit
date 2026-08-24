@@ -96,8 +96,9 @@ replayable evidence.
 
 ## Open Questions
 
-- Which implementation language and process split best satisfy low-latency IPC,
-  packaging, parser/LSP reuse, and testability?
+- Which concrete schema, local IPC, generated-binding, and peer-identity choices
+  best realize D017's Rust/polyglot process split without weakening latency or
+  authorization?
 - Which first editor exposes the strongest complete lifecycle, not merely the
   easiest model-provider endpoint?
 - Which local IPC peer-authentication mechanism is portable enough for v0?
@@ -156,22 +157,26 @@ single-document application, human outcome, and survival records.
 
 ## Tasks
 
-### T001: Select the Core stack and publish v1 draft schemas
+### T001: Publish v1 draft schemas on the selected Core stack
 
 **Feature:** F001
 **Priority:** critical
-**Likely files:** docs/DECISIONS.md, schemas/v1, src/core, tests/contracts
+**Likely files:** docs/DECISIONS.md, schemas/v1,
+crates/anvil-edit-contracts, crates/anvil-edit-core,
+tests/fixtures/contracts
 
-Choose the process/language/IPC shape through a recorded decision. Implement
-versioned schemas for `ConfigurationSnapshot`, `DocumentRevision`, lifecycle
-records, causal envelopes, attempt relations, and survival observations with
-generated fixtures. The snapshot schema preserves future managed provenance
-without implementing an Events adapter in v0.
+D017 selects the Rust hot path and polyglot process shape. Complete the still-
+open schema and IPC decision under O003, then implement versioned schemas for
+`ConfigurationSnapshot`, `DocumentRevision`, lifecycle records, causal
+envelopes, attempt relations, and survival observations with generated
+fixtures. The snapshot schema preserves future managed provenance without
+implementing an Events adapter in v0. The current Rust configuration types are
+only the first semantic slice and do not complete this task.
 
 **Acceptance criteria:**
 
-- The stack decision records alternatives, latency/privacy tradeoffs, and a
-  rollback path.
+- D017 records the stack alternatives, latency/privacy tradeoffs, and rollback
+  path; O003 records the selected schema and transport.
 - Every R001-R004 and R011 object has a machine-readable v1 draft schema.
 - Standalone `ConfigurationSnapshot` fixtures pin immutable component and
   effective-policy identity; optional desired-state provenance does not imply
@@ -180,14 +185,17 @@ without implementing an Events adapter in v0.
 
 **Verification:**
 
-- `pytest tests/contracts -q`
-- `python -m anvil_edit.schemas validate schemas/v1`
+- `cargo test -p anvil-edit-contracts`
+- `cargo test -p anvil-edit-contracts --test v1_schema_fixtures`
+- `cargo xtask check`
 
 ### T002: Prove document revision, ordering, and fencing semantics
 
 **Feature:** F001
 **Priority:** critical
-**Likely files:** src/core/documents, src/core/events, tests/contracts/test_document_revision.py, tests/core/test_event_ordering.py
+**Likely files:** crates/anvil-edit-contracts/src/document.rs,
+crates/anvil-edit-core/src/documents.rs, crates/anvil-edit-core/src/events.rs,
+crates/anvil-edit-core/tests
 **Dependencies:** T001
 
 Implement portable revision comparison, range normalization, causal ordering,
@@ -201,14 +209,17 @@ idempotent materialization, and stale invalidation fixtures.
 
 **Verification:**
 
-- `pytest tests/contracts/test_document_revision.py tests/core/test_event_ordering.py -q`
-- `pytest tests/core/test_fencing.py -q`
+- `cargo test -p anvil-edit-contracts document_revision`
+- `cargo test -p anvil-edit-core event_ordering`
+- `cargo test -p anvil-edit-core fencing`
 
 ### T003: Implement finite policy resolution and ExecutionGrant
 
 **Feature:** F002
 **Priority:** critical
-**Likely files:** src/core/policy, schemas/v1/execution-grant.schema.json, tests/privacy/test_policy.py
+**Likely files:** crates/anvil-edit-contracts/src/execution_grant.rs,
+crates/anvil-edit-core/src/policy.rs,
+schemas/v1/execution-grant.schema.json, crates/anvil-edit-core/tests
 **Dependencies:** T001
 
 Implement independent grants and deterministic precedence with a one-shot or
@@ -223,14 +234,16 @@ expiring grant consumed before protocol serialization.
 
 **Verification:**
 
-- `pytest tests/privacy/test_policy.py tests/core/test_execution_grant.py -q`
-- `pytest tests/security/test_no_serialization_before_grant.py -q`
+- `cargo test -p anvil-edit-core policy`
+- `cargo test -p anvil-edit-core execution_grant`
+- `cargo test -p anvil-edit-core no_serialization_before_grant`
 
 ### T004: Build the metadata journal and authorized erasure path
 
 **Feature:** F002
 **Priority:** high
-**Likely files:** src/core/store, src/core/erase, tests/privacy/test_metadata_only.py, tests/privacy/test_erasure.py
+**Likely files:** crates/anvil-edit-core/src/store,
+crates/anvil-edit-core/src/erase.rs, crates/anvil-edit-core/tests
 **Dependencies:** T002, T003
 
 Implement metadata-only persistence, bounded asynchronous writes, rebuildable
@@ -245,14 +258,16 @@ views, purpose-scoped identifiers, and deletion across all initial stores.
 
 **Verification:**
 
-- `pytest tests/privacy/test_metadata_only.py tests/privacy/test_erasure.py -q`
-- `pytest tests/core/test_trace_backpressure.py -q`
+- `cargo test -p anvil-edit-core metadata_only`
+- `cargo test -p anvil-edit-core erasure`
+- `cargo test -p anvil-edit-core trace_backpressure`
 
 ### T005: Implement freshness-aware context compilation
 
 **Feature:** F002
 **Priority:** high
-**Likely files:** src/core/context, tests/core/test_context_policy.py
+**Likely files:** crates/anvil-edit-core/src/context,
+crates/anvil-edit-core/tests/context_policy.rs
 **Dependencies:** T002, T003
 
 Build bounded context packs with inclusion reasons, permission classes, costs,
@@ -267,13 +282,16 @@ source revisions, and dependency freshness roles.
 
 **Verification:**
 
-- `pytest tests/core/test_context_policy.py tests/security/test_protected_paths.py -q`
+- `cargo test -p anvil-edit-core context_policy`
+- `cargo test -p anvil-edit-core protected_paths`
 
 ### T006: Implement the explicit executor and evidence seam
 
 **Feature:** F003
 **Priority:** high
-**Likely files:** src/core/executors, src/core/protocols, tests/core/test_executor_contract.py
+**Likely files:** crates/anvil-edit-core/src/executors,
+crates/anvil-edit-core/src/protocols, crates/anvil-edit-core/tests,
+crates/anvil-editd/tests
 **Dependencies:** T003, T005
 
 Implement a standalone executor interface plus the optional Anvil Serving
@@ -287,14 +305,16 @@ adapter, relative budgets, cancellation, explicit attempts, and joined evidence.
 
 **Verification:**
 
-- `pytest tests/core/test_executor_contract.py tests/core/test_evidence_join.py -q`
-- `pytest tests/integration/test_standalone_executor.py -q`
+- `cargo test -p anvil-edit-core executor_contract`
+- `cargo test -p anvil-edit-core evidence_join`
+- `cargo test -p anvil-editd standalone_executor`
 
 ### T007: Bound, normalize, present, and conditionally apply candidates
 
 **Feature:** F003
 **Priority:** critical
-**Likely files:** src/core/normalize, src/core/candidates, tests/security/test_protocol_output.py, tests/core/test_application.py
+**Likely files:** crates/anvil-edit-core/src/normalize,
+crates/anvil-edit-core/src/candidates, crates/anvil-edit-core/tests
 **Dependencies:** T002, T006
 
 Parse native output within limits, normalize non-overlapping edits, validate
@@ -310,14 +330,16 @@ transactions.
 
 **Verification:**
 
-- `pytest tests/security/test_protocol_output.py tests/core/test_application.py -q`
-- `pytest tests/core/test_candidate_normalization.py -q`
+- `cargo test -p anvil-edit-core protocol_output`
+- `cargo test -p anvil-edit-core application`
+- `cargo test -p anvil-edit-core candidate_normalization`
 
 ### T008: Publish the adapter SDK and full-lifecycle reference harness
 
 **Feature:** F004
 **Priority:** high
-**Likely files:** src/adapter_sdk, examples/reference-adapter, tests/adapter_contract
+**Likely files:** schemas/adapter/v1, crates/anvil-edit-adapter-contract,
+examples/reference-adapter, tests/fixtures/adapter-contract
 **Dependencies:** T002, T003, T007
 
 Define adapter capability discovery and a reference harness that exercises
@@ -332,5 +354,5 @@ survival without claiming a second production editor.
 
 **Verification:**
 
-- `pytest tests/adapter_contract -q`
-- `python -m anvil_edit.adapter_contract examples/reference-adapter`
+- `cargo test -p anvil-edit-adapter-contract`
+- `cargo run -p xtask -- adapter-contract examples/reference-adapter`
