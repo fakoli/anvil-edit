@@ -76,9 +76,12 @@ are in [`DATA-MODEL.md`](DATA-MODEL.md).
 
 The implemented Core vertical seam remains deliberately smaller than Core v0:
 a structurally valid standalone configuration identity can be atomically
-replaced while an existing request retains its prior identity. Core does not
-yet pin the complete `ConfigurationSnapshot`, validate fleet provenance,
-compile privacy policy, dispatch source, persist evidence, or serve an editor.
+replaced while an existing request retains its prior identity, and one
+single-writer revision slot can advance a process-local generation while
+retaining the complete `DocumentRevisionRef` fence. Core does not yet run a
+session actor, propagate cancellation, pin the complete `ConfigurationSnapshot`,
+validate fleet provenance, compile privacy policy, dispatch source, persist
+evidence, or serve an editor.
 
 Editor adapters stay in their editor's native extension ecosystem. Lab may use
 Python or another analysis-oriented language for orchestration and reports.
@@ -89,6 +92,32 @@ IPC transport, generated bindings, and durable schema, while O013 owns peer and
 destination identity. Until those decisions close, Rust types and their
 `LifecycleRecord` union are semantic contracts rather than a promise that other
 languages must mirror their memory layout or enum discriminants.
+
+## Runtime algorithm shape
+
+The initial coordination algorithm is a single-writer actor per editor session
+with a bounded inbox. Async context or executor work may run concurrently, but
+its result returns to the owning actor with the exact revision, a process-local
+generation, cancellation identity, pinned configuration, and remaining
+deadline. Completion order never becomes lifecycle order accidentally.
+
+The opportunity gate is a deterministic finite-state machine with bounded
+debounce, duplicate suppression, and rate/concurrency control. Context uses a
+bounded greedy marginal-utility selector over a fixed candidate pool. Normalized
+candidate edits stay in a small `Vec`, with a sorted validation view and an
+adjacent overlap scan. The first visible prediction path is a fast-first
+cascade with abstention, not a multi-model race.
+
+The evidence path uses an append-only bounded handoff and producer-local
+sequence plus causal links. Lab replay applies idempotency before a stable
+topological traversal; deterministic tie-breaking never asserts causality
+between independent records. Exact algorithms, structures, complexity targets,
+alternatives, and rollback triggers are recorded in
+[`ALGORITHMS.md`](ALGORITHMS.md).
+
+These are implementation defaults, not permission to add an unbounded index,
+synchronous repository scan, storage engine, wire format, or source-bearing
+cache to the hot path. O003 and the privacy/threat gates remain open.
 
 ## Components
 

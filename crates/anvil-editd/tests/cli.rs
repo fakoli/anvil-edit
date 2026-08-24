@@ -24,7 +24,7 @@ fn version_reports_foundation_status() {
 
     assert!(output.status.success());
     assert!(stdout.contains("contract 0.2"));
-    assert!(stdout.contains("configuration-identity-pinning-only"));
+    assert!(stdout.contains("configuration-pinning-and-revision-fence-primitives"));
 }
 
 #[test]

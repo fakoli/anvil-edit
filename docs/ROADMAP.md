@@ -36,10 +36,13 @@ Implementation note (2026-08-24): D017 and the initial Rust workspace resolve
 the language/process-shape slice. D018 adds the I/O-free semantic lifecycle
 model, a complete structural `ConfigurationSnapshot`, source-free content
 handles, and critical causal/document/grant/candidate/application fixtures.
-Core itself still proves only atomic configuration-identity replacement and
-request-local identity pinning. The repository has not selected O003's wire,
-IPC, or durable schemas and does not yet satisfy the Phase 0 privacy, editor,
-adopter, language-neutral-fixture, or executable-behavior exit gates.
+D019 records the initial single-writer, bounded-selection, exact-fence, and
+causal-replay algorithm defaults. Core now proves atomic configuration-identity
+replacement, request-local identity pinning, and one actor-owned local
+revision-generation primitive; it still has no session actor or cancellation
+transport. The repository has not selected O003's wire, IPC, or durable schemas
+and does not yet satisfy the Phase 0 privacy, editor, adopter,
+language-neutral-fixture, or executable-behavior exit gates.
 
 Deliverables:
 
@@ -81,12 +84,16 @@ Target: **2026-09-03 to 2026-09-20**
 Deliverables:
 
 - local daemon skeleton and editor connection;
+- bounded single-writer session coordination with request-local configuration
+  and exact revision pins;
 - snapshot, opportunity, decision, and outcome capture;
 - metadata/content-store separation;
 - repository allowlist, protected paths, pause, retention, and deletion;
 - `ExecutionGrant` enforcement before serialization or remote dispatch;
 - version-fenced normalized edit application fixtures;
-- deterministic replay of captured opportunities without model inference; and
+- deterministic replay of captured opportunities without model inference;
+- explicit replay diagnostics for idempotency, missing causal parents,
+  producer-sequence gaps, and cycles; and
 - timing instrumentation from editor opportunity through render.
 
 Exit gate:

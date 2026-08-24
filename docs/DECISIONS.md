@@ -272,6 +272,46 @@ contract. Any replacement must keep the lifecycle roles distinct, preserve the
 source-free durable boundary, and pass equivalent adversarial fixtures before
 Core depends on it.
 
+### D019 — Single-writer bounded runtime and causal replay defaults
+
+**Decision:** The foundation runtime uses one single-writer coordinator per
+editor session, bounded queues and candidate sets, process-local revision
+generations backed by exact `DocumentRevisionRef` fences, request-local immutable
+configuration pins, deterministic cheap opportunity gating, bounded greedy
+context selection, small ordered edit vectors, one visible fast-first cascade,
+and an append-only causal evidence path replayed through idempotency filtering
+and stable topological traversal.
+
+The generation is a cancellation optimization, never portable document
+identity. Stable replay tie-breakers make output reproducible but never create
+causality between independent records. Wall time remains reporting evidence,
+not lifecycle order. Storage and wire formats remain open under O003; SQLite/WAL
+plus purpose-scoped content-addressed blobs is only the leading candidate.
+
+**Why:** One editor session has a natural mutation owner, while context and edit
+sets are deliberately bounded by the latency and privacy contracts. Simple
+actor ownership, arrays, rings, maps, and adjacency lists therefore make
+correctness, backpressure, cancellation, and adversarial testing easier to
+reason about than shared multi-writer state, unbounded retrieval, CRDT/OT,
+interval trees, or lock-free structures. Causal traversal preserves the actual
+cross-process evidence model without fabricating a global order.
+
+**Consequence:** Async workers return results to the owning session coordinator
+with exact revision/configuration pins and remaining budgets. A newer relevant
+revision advances the local generation and signals cancellation, but decision,
+presentation, and application still enforce the complete exact fence. The
+opportunity gate starts deterministic; learned utility models, contextual
+bandits, semantic routing, and document mirrors require later evidence. Runtime
+latency summaries may use HDR histograms and survival reports may use
+Kaplan-Meier risk sets, but permitted raw observations remain authoritative.
+Detailed choices and complexity targets live in `docs/ALGORITHMS.md`.
+
+**Rollback:** Replace a default only when pinned profiling or adversarial
+fixtures identify a concrete bottleneck or correctness gap. Preserve lifecycle,
+privacy, evidence, and editor contracts behind the replacement, compare it
+within the same bounded workload, and record any moved invariant or product
+boundary in a superseding decision.
+
 ## Resolved foundation questions
 
 ### O002 — Implementation language and process shape

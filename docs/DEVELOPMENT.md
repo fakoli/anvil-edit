@@ -14,7 +14,7 @@ but they meet Core at explicit, versioned boundaries.
 | Path | Owner | Current state |
 | --- | --- | --- |
 | `crates/anvil-edit-contracts` | Semantic domain types shared by Core surfaces | Implements the source-free foundation lifecycle model and critical structural invariants |
-| `crates/anvil-edit-core` | Latency-sensitive policy and coordination | Implements atomic configuration-identity pinning only |
+| `crates/anvil-edit-core` | Latency-sensitive policy and coordination | Implements atomic configuration-identity pinning and one single-writer exact-revision generation/fence primitive |
 | `crates/anvil-editd` | Future local daemon process | Help/version shell; starts no server |
 | `xtask` | Cross-platform developer verification | Runs Rust and product-guidance checks |
 | `docs` | Canonical product, contract, architecture, privacy, evaluation, and PRD guidance | Normative until implemented and proven |
@@ -64,6 +64,9 @@ cargo run -p anvil-editd -- --help
 - Add dependencies once at the workspace root and use workspace inheritance.
 - Pair concurrency behavior with deterministic tests. A throughput claim still
   requires a separately recorded benchmark with percentiles and identity.
+- Use the initial actor, bounded-selection, fencing, causal-replay, and metric
+  structures in [`ALGORITHMS.md`](ALGORITHMS.md) unless pinned profiling or an
+  adversarial fixture justifies a reviewed replacement.
 
 ## Adding a polyglot component
 
@@ -103,8 +106,12 @@ Code, docs, configuration, deployment, and product evidence are different
 states. The daemon shell proves that the workspace builds; it does not prove a
 running service. The semantic lifecycle fixture proves structural joins and
 selected invariants, while the configuration test proves stable identity
-pinning. Neither proves Events convergence, privacy authorization, denied
-serialization behavior, inference, editor usefulness, or latency.
+pinning. The `LatestRevision` tests prove only local generation advancement,
+duplicate stability, current-identity conflict rejection, and generation-
+exhaustion failure; they do not prove historical identity indexing,
+cancellation propagation, or editor fencing. None of these fixtures proves
+Events convergence, privacy authorization, denied serialization behavior,
+inference, editor usefulness, or latency.
 
 Local architecture output under `graphify-out` is ignored by Git. Public
 examples and tests must remain sanitized and topology-neutral.

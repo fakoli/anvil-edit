@@ -38,6 +38,13 @@ undo/rewrite, accepted volume, and fixed-checkpoint survival. Do not gate on p99
 with fewer than 2,000 observations in the reported stratum unless a stricter
 predeclared rule applies.
 
+Bounded live HDR histograms or online moments are operational summaries, not a
+replacement for permitted raw durations or a lossless benchmark artifact.
+Compute authoritative quantiles from the retained evidence. Preserve
+right-censoring and attribution loss in declared Kaplan-Meier risk sets rather
+than dropping missing checkpoints. Verify that stable assignment and replay
+tie-breakers provide reproducibility without being interpreted as causality.
+
 Treat LLM judges as secondary: pin identity, blind and randomize candidate
 order, and calibrate on a declared human sample. Treat commit correlation as an
 exploratory proxy when attribution is lost.

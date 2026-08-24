@@ -52,6 +52,10 @@ replayable evidence.
 - R015: Authorized deletion shall physically erase covered content, linkable metadata, derived indexes, and governed copies while retaining at most a non-linkable receipt and reporting partial failure.
 - R016: Editor adapters shall declare capabilities and shall not synthesize unsupported version, presentation, conditional-application, or outcome semantics.
 - R017: Core shall consume one immutable, digest-bound `ConfigurationSnapshot` through a local provider interface and pin it into every dispatch; standalone local configuration is the initial provider, and a future Events adapter may atomically replace only a source-free, locally authorized snapshot through the separate contract in `docs/integrations/anvil-events.md` without becoming a hidden hot-path dependency.
+- R018: Core shall coordinate each editor session through one single-writer owner with bounded input and evidence queues; asynchronous context and executor work shall return through that owner with its request-local configuration, revision, cancellation, and deadline pins.
+- R019: Core may use a process-local revision generation to cancel and cheaply reject superseded work, but decision, presentation, and application shall still enforce the complete exact `DocumentRevisionRef` and declared dependency freshness roles.
+- R020: Opportunity histories, duplicate caches, context candidate pools, selected items, parser inputs, normalized edits, and concurrent attempts shall have explicit configuration bounds and observable overflow, omission, coalescing, or degradation behavior.
+- R021: Deterministic materialization shall apply producer-scoped idempotency and stable causal topological traversal, report missing parents, producer-sequence gaps, cycles, or identity conflicts, and never use wall time or a stable tie-breaker as invented causality.
 
 ## Acceptance Criteria
 
@@ -64,8 +68,14 @@ replayable evidence.
   the executor transport.
 - Duplicate and out-of-order event delivery reconstructs the same materialized
   lifecycle without duplicate attempts or outcomes.
+- Independent causal branches replay deterministically without being reported
+  as globally ordered, and missing parents, sequence gaps, and cycles remain
+  explicit.
 - A new application-critical revision cancels pending work, suppresses late
   presentation, and yields zero stale applications.
+- A duplicate exact revision does not advance its local generation; a changed
+  revision invalidates the old fast fence; conflicting reuse of one immutable
+  revision ID fails closed.
 - An unavailable capability records failure; a configured retry or fallback is
   a separately correlated request with its own decision and grant.
 - Hostile or oversized native output is rejected without rendering raw model
@@ -91,6 +101,12 @@ replayable evidence.
   grant model must remain smaller than a general policy language.
 - IPC and persistence choices can add enough tail latency to distort the
   interactive baseline.
+- A single-writer mailbox can become a tail-latency bottleneck if work is done
+  inside the actor instead of in bounded workers; profiling must preserve its
+  ownership semantics while testing alternatives.
+- A greedy bounded context selector can miss a useful combination; it must be
+  compared against alternatives on identical permitted opportunities before
+  adding a more complex retrieval structure.
 - A first adapter can accidentally hard-code one editor's UTF-16/range behavior
   into otherwise portable contracts.
 
@@ -132,28 +148,28 @@ replayable evidence.
 Defines portable document, causal envelope, attempt, and outcome schemas plus a
 deterministic local materialization model.
 
-**Requirements:** R001, R002, R003, R011
+**Requirements:** R001, R002, R003, R011, R018, R019, R021
 
 ### F002: Context and authorization plane
 
 Compiles freshness-aware context and a finite pre-serialization grant from
 local repository, destination, purpose, and session controls.
 
-**Requirements:** R005, R006, R007, R014, R015
+**Requirements:** R005, R006, R007, R014, R015, R020
 
 ### F003: Explicit executor and candidate boundary
 
 Dispatches one explicit capability/protocol under relative budgets, joins
 executor evidence, and bounds/normalizes hostile output.
 
-**Requirements:** R004, R008, R009, R010, R013, R017
+**Requirements:** R004, R008, R009, R010, R013, R017, R018, R019, R020
 
 ### F004: Adapter presentation and application boundary
 
 Declares editor capabilities and implements distinct presentation, conditional
 single-document application, human outcome, and survival records.
 
-**Requirements:** R002, R011, R012, R016
+**Requirements:** R002, R011, R012, R016, R019
 
 ## Tasks
 
@@ -177,7 +193,10 @@ Current implementation note (2026-08-24): D018 and
 one complete in-process lifecycle plus critical structural failures. This is a
 prerequisite, not completion of T001: O003 is still open, no language-neutral
 machine-readable schema or cross-language fixture exists, and the Core behavior
-tasks remain unimplemented.
+tasks remain unimplemented. D019 and `anvil-edit-core::LatestRevision` add one
+tested single-writer generation/fence primitive, but not the session actor,
+cancellation propagation, context selector, replay materializer, or editor
+application path.
 
 **Acceptance criteria:**
 
@@ -204,13 +223,17 @@ crates/anvil-edit-core/src/documents.rs, crates/anvil-edit-core/src/events.rs,
 crates/anvil-edit-core/tests
 **Dependencies:** T001
 
-Implement portable revision comparison, range normalization, causal ordering,
-idempotent materialization, and stale invalidation fixtures.
+Implement actor-owned portable revision comparison and local generations,
+range normalization, causal ordering, idempotent materialization, and stale
+invalidation fixtures. Stable replay tie-breakers must remain distinct from
+causal claims.
 
 **Acceptance criteria:**
 
 - Reopen/rename/untitled/UTF-16/non-BMP/EOL fixtures have unambiguous outcomes.
 - Duplicate and out-of-order events materialize deterministically.
+- Missing parents, producer gaps, cycles, and conflicting immutable identities
+  are reported without synthesizing records or wall-clock order.
 - A revision mismatch cannot enter the applied state.
 
 **Verification:**
@@ -252,8 +275,9 @@ expiring grant consumed before protocol serialization.
 crates/anvil-edit-core/src/erase.rs, crates/anvil-edit-core/tests
 **Dependencies:** T002, T003
 
-Implement metadata-only persistence, bounded asynchronous writes, rebuildable
-views, purpose-scoped identifiers, and deletion across all initial stores.
+Implement metadata-only persistence, bounded asynchronous writes, explicit
+backpressure degradation, rebuildable causal views, purpose-scoped
+identifiers, and deletion across all initial stores.
 
 **Acceptance criteria:**
 
@@ -277,7 +301,9 @@ crates/anvil-edit-core/tests/context_policy.rs
 **Dependencies:** T002, T003
 
 Build bounded context packs with inclusion reasons, permission classes, costs,
-source revisions, and dependency freshness roles.
+source revisions, and dependency freshness roles. Start from the deterministic
+greedy marginal-value algorithm and bounded structures in `docs/ALGORITHMS.md`;
+record limits and omissions so later alternatives can be compared fairly.
 
 **Acceptance criteria:**
 
