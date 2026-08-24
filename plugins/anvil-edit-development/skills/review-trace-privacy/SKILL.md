@@ -18,9 +18,13 @@ description: Audit Anvil Edit trace collection, executor destinations, retention
    export, training, shadow, task context, and outcome correlation.
 5. Test policy precedence: deny union, allowlist intersection, minimum
    retention, local pause wins, fleet only narrows, unknown fails closed.
-6. Trace deletion through source blobs, metadata, indexes, WAL/free pages,
+6. Treat fleet desired configuration as P0 input, never an adjacent grant.
+   Confirm its envelope, artifact, preview, outcome, and resource identity carry
+   no source, source digest, path, prompt with captured source, trace identity,
+   behavioral telemetry, credential, endpoint, or individual identifier.
+7. Trace deletion through source blobs, metadata, indexes, WAL/free pages,
    backups, exports, caches, and failure reporting.
-7. Return blockers, bounded remediations, residual risk, and the evidence class.
+8. Return blockers, bounded remediations, residual risk, and the evidence class.
 
 ## Required threat checks
 

@@ -183,6 +183,25 @@ thing an individual developer buys or installs.
 **Consequence:** A demand milestone precedes expansion, and an inconclusive
 commercial result does not get disguised as technical success.
 
+### D016 — Fleet configuration is an asynchronous, source-free bundle
+
+**Decision:** A future Anvil Events integration converges one immutable
+`edit/config/<channel>` bundle outside the prediction hot path. Core activates
+the bundle only after local compatibility and policy checks and reports the
+exact active generation, revision, and digest.
+
+**Why:** One atomic bundle prevents independently delivered prompt, policy,
+protocol, and capability revisions from producing an unreviewed combination.
+Keeping reconciliation asynchronous preserves latency and lets standalone
+Core work without a sibling service.
+
+**Consequence:** Events artifacts and outcomes contain P0 configuration and
+source-free operational evidence only. Fleet policy may narrow but never widen
+local permission, and an Events desired revision is not an `ExecutionGrant`,
+deployment, qualification, or promotion. The identifiers are reserved design
+contracts until the upstream work and local conformance gates in
+`integrations/anvil-events.md` are implemented.
+
 ## Open decisions
 
 ### O001 — First editor adapter
@@ -287,3 +306,23 @@ identity, key lifecycle, crash/swap/temp handling, and remote destination
 attestation sufficient to issue `ExecutionGrant` records.
 
 Needed before: source-bearing persistence or remote inference.
+
+### O014 — Anvil Events activation transport and compatibility
+
+Choose the authenticated local activation boundary, exact bundle wire schema,
+Core acknowledgement and recovery protocol, cross-version compatibility
+matrix, and whether Anvil Events uses a managed-file adapter, external adapter
+process, or another narrow reconciler. A language refactor is permitted only
+with v2 envelope, durable-store migration/export, and reconciliation behavior
+compatibility.
+
+Needed before: implementing managed fleet configuration.
+
+### O015 — Managed configuration staleness and emergency revocation
+
+Choose bundle validity/expiry, offline grace, last-known-good behavior, local
+emergency pause, and fail-closed behavior for a node that cannot observe a
+revocation. Eventual convergence is not an emergency-revocation channel and
+must not be presented as one.
+
+Needed before: implementing managed fleet configuration.

@@ -121,6 +121,21 @@ The most restrictive applicable workspace, repository, file, and destination
 rule wins. Policy denial causes abstention or smaller context, not a hidden
 override.
 
+### Fleet configuration input
+
+A future Anvil Events bundle is P0 configuration input only. It may supply
+source-free policy identities, capability aliases, protocol identities, and
+more restrictive limits. It does not grant runtime read, executor dispatch,
+persistence, replay, export, training, shadow use, task context, or outcome
+correlation.
+
+Events envelopes, configuration artifacts, reconciliation previews, and
+outcomes must contain no source, source digest, path, prompt containing captured
+source, trace identifier, individual identifier, credential, endpoint URL, or
+behavioral telemetry. A fleet revision that attempts to broaden local
+permission is denied or held for review while the prior safe configuration or
+local pause remains effective.
+
 ## Protected content
 
 At minimum, default protected rules should cover common credential files,

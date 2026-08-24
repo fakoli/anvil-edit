@@ -278,6 +278,10 @@ temporary files, and backups rather than assuming row deletion erases bytes.
 | Policy revision missing | Fail closed for reproducible replay; do not use an unpinned latest policy |
 | Edit and executor evidence disagree | Preserve both claims, mark the join conflicted, and fail dependent promotion gates |
 | Deletion misses a store, backup, or export | Report partial failure and keep the deletion request actionable; never claim erasure completed |
+| Events is unavailable | Make no hot-path call; retain the permitted last verified snapshot or remain disabled in managed mode |
+| Desired configuration is stale, conflicting, incomplete, or incompatible | Do not activate it; retain the prior verified snapshot and report the exact reason |
+| Configuration activation crashes | Mark the attempt indeterminate and inspect Core's exact active identity before recovery |
+| Configuration verification or rollback fails | Do not report the desired generation applied; preserve the conflict/failure for explicit recovery |
 
 ## Evidence seam
 
@@ -302,7 +306,7 @@ flowchart LR
     WB[Anvil Workbench]
 
     STATE -. bounded read-only task context .-> EDIT
-    EVENTS -. desired policy and config revisions .-> EDIT
+    EVENTS -. desired configuration bundle .-> EDIT
     EDIT -->|explicit capability alias| SERVE
     EDIT -. redacted benchmark evidence .-> WB
 ```
@@ -316,6 +320,41 @@ flowchart LR
 No integration authorizes a deployment. Source changes, configured aliases,
 running endpoints, live editor acceptance, and policy promotion are distinct
 evidence states.
+
+### Future Anvil Events control path
+
+The Events integration is a design reference and is not implemented. In
+managed mode, a background reconciler may fetch and validate one exact
+`edit/config/<channel>` bundle, then ask Core to atomically activate it through
+an authenticated local control boundary. Core's prediction path reads only the
+already-active immutable snapshot; it never calls Events, JetStream, an
+artifact source, or a reconciler while producing a prediction.
+
+```mermaid
+flowchart LR
+    AUTHORITY[Configuration authority]
+    EVENTS[Anvil Events]
+    RECON[Node reconciler]
+    CORE[Anvil Edit Core]
+    ACTIVE[(Active immutable config)]
+    HOT[Prediction hot path]
+
+    AUTHORITY -->|desired generation and artifact digest| EVENTS
+    EVENTS --> RECON
+    RECON -->|stage, validate, activate| CORE
+    CORE -->|exact desired tuple and effective snapshot| RECON
+    CORE --> ACTIVE
+    ACTIVE --> HOT
+    RECON -->|applied, failed, awaiting approval| EVENTS
+```
+
+One bundle is the first atomic activation unit. Independently converged prompt,
+policy, protocol, or capability resources are deferred until an activation-
+group contract prevents mixed generations. Fleet configuration is source-free
+P0 data and cannot create an `ExecutionGrant` or widen local privacy settings.
+Crash recovery verifies Core's exact active identity before resolving an
+indeterminate reconciliation. See
+[`integrations/anvil-events.md`](integrations/anvil-events.md).
 
 ## Adapter portability validation
 
