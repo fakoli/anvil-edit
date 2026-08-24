@@ -161,7 +161,7 @@ single-document application, human outcome, and survival records.
 
 **Feature:** F001
 **Priority:** critical
-**Likely files:** docs/DECISIONS.md, schemas/v1,
+**Likely files:** docs/DECISIONS.md, docs/DATA-MODEL.md, schemas/v1,
 crates/anvil-edit-contracts, crates/anvil-edit-core,
 tests/fixtures/contracts
 
@@ -170,8 +170,14 @@ open schema and IPC decision under O003, then implement versioned schemas for
 `ConfigurationSnapshot`, `DocumentRevision`, lifecycle records, causal
 envelopes, attempt relations, and survival observations with generated
 fixtures. The snapshot schema preserves future managed provenance without
-implementing an Events adapter in v0. The current Rust configuration types are
-only the first semantic slice and do not complete this task.
+implementing an Events adapter in v0.
+
+Current implementation note (2026-08-24): D018 and
+`anvil-edit-contracts` now define the I/O-free semantic record set and exercise
+one complete in-process lifecycle plus critical structural failures. This is a
+prerequisite, not completion of T001: O003 is still open, no language-neutral
+machine-readable schema or cross-language fixture exists, and the Core behavior
+tasks remain unimplemented.
 
 **Acceptance criteria:**
 

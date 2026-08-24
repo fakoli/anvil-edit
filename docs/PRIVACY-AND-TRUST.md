@@ -2,7 +2,7 @@
 
 Status: **normative foundation; implementation threat model pending**
 
-Last reviewed: **2026-08-23**
+Last reviewed: **2026-08-24**
 
 Editor traces are unusually sensitive. They can contain proprietary source,
 secrets, customer data, internal URLs, abandoned experiments, and behavior that
@@ -33,6 +33,24 @@ Anvil Edit should be:
 
 Hashes are identifiers, not anonymization. Small or known source fragments may
 be recoverable by guessing. They remain governed metadata.
+
+### Semantic record boundary
+
+The implemented Rust lifecycle model stores source-free `ContentReference`
+handles, not buffer text, logical URI bytes, paths, prompts, native model
+output, or replacement bytes. Each handle is purpose-scoped and records digest,
+byte length, data class, and permitted persistence. P4 content is structurally
+restricted to memory-only handling.
+
+This representation is not an authorization shortcut. Identifiers, reason
+codes, and component fields must remain source-free, and a caller cannot hide a
+path, symbol, source fragment, or secret in an “opaque” string. Resolving a
+content handle for runtime read, another process, persistence, replay, or export
+still requires the independent grant for that purpose. A future wire or store
+must preserve this separation and prove it with content-disabled fixtures.
+Purpose-scoping an identifier also does not make its content digest anonymous;
+digests remain linkable governed metadata and must follow the same retention
+and deletion lineage.
 
 ## Default policy
 
@@ -101,6 +119,8 @@ capability and protocol revision, purpose, visible/shadow mode, allowed content
 classes, policy digest, and expiry. Denial abstains before network dispatch.
 Context selection requires its own already-effective local runtime-read grant;
 the later content-bound dispatch grant does not retroactively authorize reads.
+The semantic model represents these as separate records and requires the
+dispatch grant to bind the exact content handles before serialization.
 
 ## Repository policy
 

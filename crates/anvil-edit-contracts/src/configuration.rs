@@ -1,126 +1,64 @@
-use std::error::Error;
-use std::fmt;
+use std::collections::BTreeSet;
 
-/// The semantic contract version implemented by this foundation slice.
-pub const FOUNDATION_CONTRACT_VERSION: ContractVersion = ContractVersion::new(0, 1);
+use crate::{
+    CheckResult, ContractError, ContractVersion, FOUNDATION_CONTRACT_VERSION, Identifier,
+    MonotonicTick, ReasonCode, RecordEnvelope, Sha256Digest, WallClockMicros,
+};
 
-const MAX_IDENTITY_BYTES: usize = 256;
+/// Backwards-compatible name for configuration construction failures.
+pub type ConfigurationError = ContractError;
 
-/// A major/minor semantic contract version.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ContractVersion {
-    major: u16,
-    minor: u16,
-}
-
-impl ContractVersion {
-    /// Creates a semantic contract version.
-    #[must_use]
-    pub const fn new(major: u16, minor: u16) -> Self {
-        Self { major, minor }
-    }
-
-    /// Returns the incompatible-change version.
-    #[must_use]
-    pub const fn major(self) -> u16 {
-        self.major
-    }
-
-    /// Returns the backwards-compatible-change version.
-    #[must_use]
-    pub const fn minor(self) -> u16 {
-        self.minor
-    }
-}
-
-impl fmt::Display for ContractVersion {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}.{}", self.major, self.minor)
-    }
-}
-
-/// The source of an active configuration snapshot.
+/// The source of an immutable configuration snapshot.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ConfigurationMode {
     /// Configuration was resolved locally without a fleet controller.
     Standalone,
+    /// Configuration originated from a managed desired revision and was narrowed locally.
+    Managed,
 }
 
-/// A structurally valid lowercase SHA-256 digest.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Sha256Digest(String);
-
-impl Sha256Digest {
-    /// Validates and stores a lowercase 64-character hexadecimal digest.
-    pub fn new(value: impl Into<String>) -> Result<Self, ConfigurationError> {
-        let value = value.into();
-        let valid = value.len() == 64
-            && value
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-
-        if valid {
-            Ok(Self(value))
-        } else {
-            Err(ConfigurationError::InvalidSha256Digest)
-        }
-    }
-
-    /// Returns the digest text.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for Sha256Digest {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.as_str())
-    }
-}
-
-impl TryFrom<&str> for Sha256Digest {
-    type Error = ConfigurationError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-/// The foundation subset of configuration identity pinned by one request.
-///
-/// This is not yet the complete canonical `ConfigurationSnapshot` contract.
-/// It isolates the stable identifier, revision, digest, and local mode needed
-/// to prove pinning while the full schema and transport remain undecided.
+/// Stable identity pinned into each request that uses a configuration snapshot.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigurationIdentity {
     contract_version: ContractVersion,
-    snapshot_id: String,
-    revision: String,
+    snapshot_id: Identifier,
+    revision: Identifier,
     digest: Sha256Digest,
     mode: ConfigurationMode,
 }
 
 impl ConfigurationIdentity {
     /// Creates a structurally valid standalone configuration identity.
-    ///
-    /// This validates identity shape only. It does not establish local policy
-    /// authorization, artifact provenance, deployment, or promotion.
     pub fn standalone(
         snapshot_id: impl Into<String>,
         revision: impl Into<String>,
         digest: Sha256Digest,
     ) -> Result<Self, ConfigurationError> {
-        let snapshot_id = validate_identity("snapshot_id", snapshot_id.into())?;
-        let revision = validate_identity("revision", revision.into())?;
+        Self::new(snapshot_id, revision, digest, ConfigurationMode::Standalone)
+    }
 
+    /// Creates a structurally valid managed configuration identity.
+    pub fn managed(
+        snapshot_id: impl Into<String>,
+        revision: impl Into<String>,
+        digest: Sha256Digest,
+    ) -> Result<Self, ConfigurationError> {
+        Self::new(snapshot_id, revision, digest, ConfigurationMode::Managed)
+    }
+
+    fn new(
+        snapshot_id: impl Into<String>,
+        revision: impl Into<String>,
+        digest: Sha256Digest,
+        mode: ConfigurationMode,
+    ) -> Result<Self, ConfigurationError> {
         Ok(Self {
             contract_version: FOUNDATION_CONTRACT_VERSION,
-            snapshot_id,
-            revision,
+            snapshot_id: Identifier::new("snapshot_id", snapshot_id)?,
+            revision: Identifier::new("revision", revision)?,
             digest,
-            mode: ConfigurationMode::Standalone,
+            mode,
         })
     }
 
@@ -133,13 +71,13 @@ impl ConfigurationIdentity {
     /// Returns the immutable snapshot identifier.
     #[must_use]
     pub fn snapshot_id(&self) -> &str {
-        &self.snapshot_id
+        self.snapshot_id.as_str()
     }
 
     /// Returns the immutable configuration revision.
     #[must_use]
     pub fn revision(&self) -> &str {
-        &self.revision
+        self.revision.as_str()
     }
 
     /// Returns the digest binding the effective configuration.
@@ -155,50 +93,316 @@ impl ConfigurationIdentity {
     }
 }
 
-/// Structural configuration identity errors.
+/// Required component classes within one complete configuration snapshot.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum ConfigurationComponentKind {
+    /// Opportunity and prediction policy.
+    PredictionPolicy,
+    /// Context selection and freshness policy.
+    ContextPolicy,
+    /// Candidate display and abstention policy.
+    DisplayPolicy,
+    /// Explicit capability-selection policy.
+    RoutingPolicy,
+    /// Finite authorization policy.
+    AuthorizationPolicy,
+    /// Native prompt protocol selection.
+    PromptProtocol,
+    /// Allowed explicit capability aliases.
+    CapabilityPack,
+    /// Candidate normalization and validation policy.
+    NormalizationPolicy,
+}
+
+impl ConfigurationComponentKind {
+    const REQUIRED: [Self; 8] = [
+        Self::PredictionPolicy,
+        Self::ContextPolicy,
+        Self::DisplayPolicy,
+        Self::RoutingPolicy,
+        Self::AuthorizationPolicy,
+        Self::PromptProtocol,
+        Self::CapabilityPack,
+        Self::NormalizationPolicy,
+    ];
+}
+
+/// Immutable identity for one configuration component.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ConfigurationError {
-    /// A required identity field was empty or contained only whitespace.
-    EmptyField(&'static str),
-    /// An identity exceeded the foundation's structural byte bound.
-    FieldTooLong(&'static str),
-    /// An identity contained a control character unsafe for logs or evidence.
-    ControlCharacter(&'static str),
-    /// A digest was not lowercase, hexadecimal, and exactly 64 characters.
-    InvalidSha256Digest,
+pub struct ComponentIdentity {
+    /// Logical component identifier.
+    pub id: Identifier,
+    /// Immutable component revision.
+    pub revision: Identifier,
+    /// Digest of the canonical component artifact.
+    pub digest: Sha256Digest,
 }
 
-impl fmt::Display for ConfigurationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::EmptyField(field) => write!(formatter, "{field} must not be empty"),
-            Self::FieldTooLong(field) => {
-                write!(
-                    formatter,
-                    "{field} must not exceed {MAX_IDENTITY_BYTES} bytes"
-                )
-            }
-            Self::ControlCharacter(field) => {
-                write!(formatter, "{field} must not contain control characters")
-            }
-            Self::InvalidSha256Digest => formatter
-                .write_str("configuration digest must be 64 lowercase hexadecimal characters"),
+/// One typed component included in a complete snapshot.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigurationComponent {
+    /// Component role within the snapshot.
+    pub kind: ConfigurationComponentKind,
+    /// Immutable component identity.
+    pub identity: ComponentIdentity,
+}
+
+/// Exact managed desired-state provenance retained separately from active identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DesiredConfigurationProvenance {
+    /// Desired event identifier.
+    pub desired_event_id: Identifier,
+    /// Locally bound authority identifier.
+    pub authority: Identifier,
+    /// Logical managed resource key.
+    pub resource: Identifier,
+    /// Monotonic generation within the authority/resource binding.
+    pub generation: u64,
+    /// Immutable desired revision.
+    pub revision: Identifier,
+    /// Locally registered adapter identifier.
+    pub adapter: Identifier,
+    /// Immutable locally registered adapter revision.
+    pub adapter_revision: Identifier,
+    /// Digest of the referenced configuration bundle artifact.
+    pub artifact_digest: Sha256Digest,
+    /// Independent bundle-contract version.
+    pub bundle_contract_version: ContractVersion,
+}
+
+/// Provider and activation information for a complete snapshot.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigurationSource {
+    /// Local provider implementation identity.
+    pub provider: Identifier,
+    /// Immutable provider revision.
+    pub provider_revision: Identifier,
+    /// Local activation attempt that made the snapshot eligible.
+    pub activation_attempt_id: Identifier,
+    /// Previous active snapshot, when replacement occurred.
+    pub previous_snapshot_id: Option<Identifier>,
+    /// Managed desired provenance, absent in standalone mode.
+    pub desired: Option<DesiredConfigurationProvenance>,
+}
+
+/// The immutable, locally validated configuration used by prediction work.
+///
+/// Construction proves only structural completeness and mode/provenance
+/// consistency. It is not deployment, executor health, qualification, or
+/// policy-promotion evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigurationSnapshot {
+    envelope: RecordEnvelope,
+    identity: ConfigurationIdentity,
+    source: ConfigurationSource,
+    components: Vec<ConfigurationComponent>,
+    effective_local_policy_digest: Sha256Digest,
+    externally_narrowed: bool,
+    valid_until_wall: Option<WallClockMicros>,
+}
+
+impl ConfigurationSnapshot {
+    /// Creates a structurally complete immutable snapshot.
+    pub fn new(
+        envelope: RecordEnvelope,
+        identity: ConfigurationIdentity,
+        source: ConfigurationSource,
+        components: Vec<ConfigurationComponent>,
+        effective_local_policy_digest: Sha256Digest,
+        externally_narrowed: bool,
+        valid_until_wall: Option<WallClockMicros>,
+    ) -> Result<Self, ConfigurationError> {
+        if envelope.id().as_str() != identity.snapshot_id() {
+            return Err(ContractError::InvalidState(
+                "configuration envelope and snapshot identity must agree",
+            ));
         }
+        let managed = identity.mode() == ConfigurationMode::Managed;
+        if managed != source.desired.is_some() {
+            return Err(ContractError::InvalidState(
+                "managed mode and desired provenance must agree",
+            ));
+        }
+
+        if source
+            .desired
+            .as_ref()
+            .is_some_and(|desired| desired.generation == 0)
+        {
+            return Err(ContractError::InvalidState(
+                "managed generation must start at one",
+            ));
+        }
+
+        let kinds = components
+            .iter()
+            .map(|component| component.kind)
+            .collect::<BTreeSet<_>>();
+        if kinds.len() != components.len() {
+            return Err(ContractError::DuplicateReference(
+                "configuration component kind",
+            ));
+        }
+        if kinds != ConfigurationComponentKind::REQUIRED.into_iter().collect() {
+            return Err(ContractError::InvalidState(
+                "configuration snapshot must contain every required component exactly once",
+            ));
+        }
+
+        Ok(Self {
+            envelope,
+            identity,
+            source,
+            components,
+            effective_local_policy_digest,
+            externally_narrowed,
+            valid_until_wall,
+        })
+    }
+
+    /// Returns the common causal envelope.
+    #[must_use]
+    pub const fn envelope(&self) -> &RecordEnvelope {
+        &self.envelope
+    }
+
+    /// Returns the identity pinned by requests.
+    #[must_use]
+    pub const fn identity(&self) -> &ConfigurationIdentity {
+        &self.identity
+    }
+
+    /// Returns provider and activation provenance.
+    #[must_use]
+    pub const fn source(&self) -> &ConfigurationSource {
+        &self.source
+    }
+
+    /// Returns the complete ordered component set.
+    #[must_use]
+    pub fn components(&self) -> &[ConfigurationComponent] {
+        &self.components
+    }
+
+    /// Returns the effective locally compiled policy digest.
+    #[must_use]
+    pub const fn effective_local_policy_digest(&self) -> &Sha256Digest {
+        &self.effective_local_policy_digest
+    }
+
+    /// Returns whether an external proposal was narrowed by local policy.
+    #[must_use]
+    pub const fn externally_narrowed(&self) -> bool {
+        self.externally_narrowed
+    }
+
+    /// Returns the optional wall-clock validity limit.
+    #[must_use]
+    pub const fn valid_until_wall(&self) -> Option<WallClockMicros> {
+        self.valid_until_wall
     }
 }
 
-impl Error for ConfigurationError {}
+/// Lifecycle state observed for an immutable configuration snapshot.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ConfigurationLifecycleState {
+    /// Validated and staged but not active.
+    Staged,
+    /// Atomically selected for new prediction work.
+    Active,
+    /// Replaced by another active snapshot.
+    Superseded,
+    /// Rejected before activation.
+    Rejected,
+    /// Replaced by a verified prior snapshot after failed activation.
+    RolledBack,
+    /// Activation state cannot yet be determined after interruption.
+    Indeterminate,
+}
 
-fn validate_identity(field: &'static str, value: String) -> Result<String, ConfigurationError> {
-    if value.trim().is_empty() {
-        Err(ConfigurationError::EmptyField(field))
-    } else if value.len() > MAX_IDENTITY_BYTES {
-        Err(ConfigurationError::FieldTooLong(field))
-    } else if value.chars().any(char::is_control) {
-        Err(ConfigurationError::ControlCharacter(field))
-    } else {
-        Ok(value)
-    }
+/// Append-only lifecycle evidence for an immutable configuration snapshot.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigurationLifecycleObservation {
+    /// Common causal envelope.
+    pub envelope: RecordEnvelope,
+    /// Configuration snapshot being observed.
+    pub snapshot_id: Identifier,
+    /// Observed lifecycle state.
+    pub state: ConfigurationLifecycleState,
+    /// Bounded source-free reasons for the observation.
+    pub reason_codes: Vec<ReasonCode>,
+}
+
+/// Check results produced while reconciling managed desired configuration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReconciliationChecks {
+    /// Desired envelope and bundle schema validation.
+    pub schema: CheckResult,
+    /// Core, adapter, and product compatibility validation.
+    pub compatibility: CheckResult,
+    /// Artifact digest, size, and provenance validation.
+    pub artifact: CheckResult,
+    /// Local policy intersection and narrow-only validation.
+    pub local_policy: CheckResult,
+    /// Atomic activation result.
+    pub activation: CheckResult,
+    /// Read-back verification against Core's exact active identity.
+    pub verification: CheckResult,
+}
+
+/// Terminal managed-configuration reconciliation outcome.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ReconciliationOutcome {
+    /// The exact desired revision became active without further narrowing.
+    Applied,
+    /// The bundle became active after local policy narrowed its effect.
+    AppliedWithLocalNarrowing,
+    /// Validation, preparation, activation, or verification failed.
+    Failed,
+    /// Local approval is required before activation.
+    AwaitingApproval,
+    /// Delivery was an idempotent older or duplicate generation.
+    NoChange,
+    /// Recovery must observe Core before choosing an action.
+    Indeterminate,
+}
+
+/// Source-free evidence joining external desired state to local activation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigurationReconciliationObservation {
+    /// Common causal envelope.
+    pub envelope: RecordEnvelope,
+    /// Exact desired state being reconciled.
+    pub desired: DesiredConfigurationProvenance,
+    /// Reconciliation operation identifier.
+    pub operation_id: Identifier,
+    /// Local activation attempt identifier.
+    pub activation_attempt_id: Identifier,
+    /// Prior active snapshot, when one existed.
+    pub prior_snapshot_id: Option<Identifier>,
+    /// Proposed effective snapshot.
+    pub proposed_snapshot_id: Option<Identifier>,
+    /// Receive tick on the reconciler clock.
+    pub received_at: MonotonicTick,
+    /// Optional staging tick on the same declared clock.
+    pub staged_at: Option<MonotonicTick>,
+    /// Optional activation tick on the same declared clock.
+    pub activated_at: Option<MonotonicTick>,
+    /// Optional verification tick on the same declared clock.
+    pub verified_at: Option<MonotonicTick>,
+    /// Optional rollback tick on the same declared clock.
+    pub rolled_back_at: Option<MonotonicTick>,
+    /// Results for every reconciliation gate.
+    pub checks: ReconciliationChecks,
+    /// Terminal reconciliation outcome.
+    pub outcome: ReconciliationOutcome,
+    /// Exact effective active snapshot after reconciliation, when known.
+    pub effective_snapshot: Option<ConfigurationIdentity>,
+    /// Bounded source-free reason codes.
+    pub reason_codes: Vec<ReasonCode>,
 }
 
 #[cfg(test)]
@@ -207,57 +411,102 @@ mod tests {
 
     const DIGEST: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+    fn identifier(field: &'static str, value: &str) -> Identifier {
+        Identifier::new(field, value).expect("fixture identifier")
+    }
+
+    fn digest(character: char) -> Sha256Digest {
+        Sha256Digest::new(character.to_string().repeat(64)).expect("fixture digest")
+    }
+
+    fn components() -> Vec<ConfigurationComponent> {
+        let digest_characters = ['b', 'c', 'd', 'e', 'f', '0', '1', '2'];
+        ConfigurationComponentKind::REQUIRED
+            .into_iter()
+            .zip(digest_characters)
+            .enumerate()
+            .map(|(index, (kind, digest_character))| ConfigurationComponent {
+                kind,
+                identity: ComponentIdentity {
+                    id: identifier("component_id", &format!("component-{index}")),
+                    revision: identifier("component_revision", "r1"),
+                    digest: digest(digest_character),
+                },
+            })
+            .collect()
+    }
+
     #[test]
-    fn accepts_structurally_valid_standalone_identity() {
-        let snapshot = ConfigurationIdentity::standalone(
-            "standalone/default",
-            "foundation-r1",
-            Sha256Digest::new(DIGEST).expect("fixture digest is valid"),
+    fn accepts_complete_standalone_snapshot() {
+        let snapshot = ConfigurationSnapshot::new(
+            crate::test_support::envelope("standalone/default", 1),
+            ConfigurationIdentity::standalone("standalone/default", "r1", digest('a'))
+                .expect("identity"),
+            ConfigurationSource {
+                provider: identifier("provider", "local-file"),
+                provider_revision: identifier("provider_revision", "r1"),
+                activation_attempt_id: identifier("activation_attempt", "activate-1"),
+                previous_snapshot_id: None,
+                desired: None,
+            },
+            components(),
+            digest('f'),
+            false,
+            None,
         )
-        .expect("fixture snapshot is valid");
+        .expect("complete standalone snapshot");
 
-        assert_eq!(snapshot.contract_version(), ContractVersion::new(0, 1));
-        assert_eq!(snapshot.snapshot_id(), "standalone/default");
-        assert_eq!(snapshot.revision(), "foundation-r1");
-        assert_eq!(snapshot.digest().as_str(), DIGEST);
-        assert_eq!(snapshot.mode(), ConfigurationMode::Standalone);
+        assert_eq!(
+            snapshot.identity().contract_version(),
+            ContractVersion::new(0, 2)
+        );
+        assert_eq!(snapshot.components().len(), 8);
+        assert_eq!(snapshot.identity().digest().as_str(), DIGEST);
     }
 
     #[test]
-    fn rejects_empty_identity_fields() {
-        let error = ConfigurationIdentity::standalone(
-            "   ",
-            "foundation-r1",
-            Sha256Digest::new(DIGEST).expect("fixture digest is valid"),
-        )
-        .expect_err("blank identity must fail");
+    fn rejects_missing_component_or_managed_provenance_mismatch() {
+        let mut incomplete = components();
+        incomplete.pop();
+        let source = ConfigurationSource {
+            provider: identifier("provider", "local-file"),
+            provider_revision: identifier("provider_revision", "r1"),
+            activation_attempt_id: identifier("activation_attempt", "activate-1"),
+            previous_snapshot_id: None,
+            desired: None,
+        };
 
-        assert_eq!(error, ConfigurationError::EmptyField("snapshot_id"));
-    }
-
-    #[test]
-    fn rejects_noncanonical_digest() {
-        assert_eq!(
-            Sha256Digest::new("A".repeat(64)),
-            Err(ConfigurationError::InvalidSha256Digest)
+        let missing = ConfigurationSnapshot::new(
+            crate::test_support::envelope("standalone/default", 1),
+            ConfigurationIdentity::standalone("standalone/default", "r1", digest('a'))
+                .expect("identity"),
+            source.clone(),
+            incomplete,
+            digest('f'),
+            false,
+            None,
         );
         assert_eq!(
-            Sha256Digest::new("abc"),
-            Err(ConfigurationError::InvalidSha256Digest)
+            missing,
+            Err(ContractError::InvalidState(
+                "configuration snapshot must contain every required component exactly once"
+            ))
         );
-    }
 
-    #[test]
-    fn rejects_unsafe_or_unbounded_identity_text() {
-        let digest = || Sha256Digest::new(DIGEST).expect("fixture digest is valid");
-
-        assert_eq!(
-            ConfigurationIdentity::standalone("snapshot\nforged", "r1", digest()),
-            Err(ConfigurationError::ControlCharacter("snapshot_id"))
+        let mismatch = ConfigurationSnapshot::new(
+            crate::test_support::envelope("managed/default", 1),
+            ConfigurationIdentity::managed("managed/default", "r1", digest('a')).expect("identity"),
+            source,
+            components(),
+            digest('f'),
+            false,
+            None,
         );
         assert_eq!(
-            ConfigurationIdentity::standalone("a".repeat(257), "r1", digest()),
-            Err(ConfigurationError::FieldTooLong("snapshot_id"))
+            mismatch,
+            Err(ContractError::InvalidState(
+                "managed mode and desired provenance must agree"
+            ))
         );
     }
 }

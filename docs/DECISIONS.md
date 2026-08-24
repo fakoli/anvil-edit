@@ -241,6 +241,37 @@ component, it can be replaced behind that boundary without changing the editor
 or Lab contract; a language rewrite does not waive contract, privacy, or
 evidence gates.
 
+### D018 — Semantic lifecycle model before wire and storage selection
+
+**Decision:** `anvil-edit-contracts` implements the complete foundation
+lifecycle as an I/O-free Rust semantic model at contract version `0.2` while
+O003's wire, IPC, generated-binding, and durable-store formats remain open.
+Every durable lifecycle record carries the common causal envelope and remains a
+distinct `LifecycleRecord` variant. Source-bearing bytes, including logical URI
+and replacement text, stay outside durable records behind purpose-scoped
+`ContentReference` handles.
+
+**Why:** Core needs executable types and invariants before policy, fencing, and
+replay behavior can be implemented, but selecting a Rust memory layout must not
+accidentally determine the polyglot protocol or database. Source-free records
+also make the metadata/content boundary reviewable before a storage engine is
+chosen.
+
+**Consequence:** Semantic major-version, causal/idempotency, complete
+configuration, self-contained document fencing, separate runtime-read and
+content-bound dispatch grants, same-document/non-overlap, and v0
+conditional-application invariants have executable fixtures. The model
+does not prove cross-process round trips, peer identity, zero-byte denied
+serialization, database migration, physical erasure, deployment, or product
+utility. O003 remains unresolved, and future language-neutral schemas version
+independently and must preserve `CONTRACTS.md` rather than Rust field order or
+enum discriminants.
+
+**Rollback:** The semantic projection can be replaced behind the same canonical
+contract. Any replacement must keep the lifecycle roles distinct, preserve the
+source-free durable boundary, and pass equivalent adversarial fixtures before
+Core depends on it.
+
 ## Resolved foundation questions
 
 ### O002 — Implementation language and process shape

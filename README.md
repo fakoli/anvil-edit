@@ -12,9 +12,11 @@ control.
 
 Anvil Edit is at the foundation stage. This repository now contains an initial
 Rust workspace alongside the product definition, safety and privacy rules,
-evaluation plan, product requirements, and development skills. The code proves
-one narrow building block: work already underway keeps the configuration
-identity it began with even if a newer identity is selected.
+evaluation plan, product requirements, and development skills. The code now
+defines how editing moments, permissions, suggestions, and outcomes relate
+without storing source text in ordinary records. It also proves one narrow Core
+building block: work already underway keeps the configuration identity it began
+with even if a newer identity is selected.
 
 It is not yet a released application. It has no editor integration, model
 connection, trace database, or proven latency and usefulness results.
@@ -67,6 +69,7 @@ what deserves to grow.
 - [Core, Lab, and Flow product requirements](docs/prds/README.md)
 - [How we will judge whether it works](docs/EVALUATION.md)
 - [How privacy and developer control work](docs/PRIVACY-AND-TRUST.md)
+- [How the system represents editing activity](docs/DATA-MODEL.md)
 - [The validation roadmap](docs/ROADMAP.md)
 - [How the codebase is organized and checked](docs/DEVELOPMENT.md)
 
