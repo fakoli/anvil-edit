@@ -247,6 +247,10 @@ separate visible and durable-outcome gates.
 - Individual developer productivity dashboards.
 - General smart routing inside Anvil Serving.
 - A full editor fork.
+- Anvil Events managed configuration. The non-implemented contract is recorded
+  in [`integrations/anvil-events.md`](integrations/anvil-events.md); delivery
+  waits for the upstream convergence issue, Core's local activation contract,
+  and standalone product evidence.
 
 Each deferred item needs a new decision record and its own acceptance/privacy
 gate before entering a delivery plan.

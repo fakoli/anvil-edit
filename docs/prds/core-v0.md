@@ -29,6 +29,8 @@ replayable evidence.
   before the corresponding privacy and threat gates pass.
 - Own model lifecycle, GPU placement, Anvil task state, fleet convergence, or a
   Workbench UI.
+- Implement Anvil Events managed configuration; v0 preserves only a future
+  source-free, asynchronous activation boundary and remains standalone.
 - Build or fork a complete editor.
 
 ## Requirements
@@ -49,7 +51,7 @@ replayable evidence.
 - R014: Metadata-only recording shall be the default; source-bearing persistence, replay, export, training, remote dispatch, task context, and outcome correlation shall require their own grants.
 - R015: Authorized deletion shall physically erase covered content, linkable metadata, derived indexes, and governed copies while retaining at most a non-linkable receipt and reporting partial failure.
 - R016: Editor adapters shall declare capabilities and shall not synthesize unsupported version, presentation, conditional-application, or outcome semantics.
-- R017: Core shall operate with a standalone explicit executor and optional Anvil Serving, State, Events, or Workbench adapters without making a sibling product a hidden hot-path dependency.
+- R017: Core shall consume one immutable, digest-bound `ConfigurationSnapshot` through a local provider interface and pin it into every dispatch; standalone local configuration is the initial provider, and a future Events adapter may atomically replace only a source-free, locally authorized snapshot through the separate contract in `docs/integrations/anvil-events.md` without becoming a hidden hot-path dependency.
 
 ## Acceptance Criteria
 
@@ -74,6 +76,10 @@ replayable evidence.
   export copies, and partial-failure reporting.
 - The executor/Edit joined manifest names ownership and blocks a dependent gate
   when required evidence is missing or conflicting.
+- Standalone operation needs no Events process, and a dispatch retains the
+  configuration snapshot it started with across a concurrent atomic activation.
+- Unverified, incompatible, stale, or same-generation/conflicting configuration
+  proposals never become active.
 
 ## Risks
 
@@ -157,14 +163,19 @@ single-document application, human outcome, and survival records.
 **Likely files:** docs/DECISIONS.md, schemas/v1, src/core, tests/contracts
 
 Choose the process/language/IPC shape through a recorded decision. Implement
-versioned schemas for `DocumentRevision`, lifecycle records, causal envelopes,
-attempt relations, and survival observations with generated fixtures.
+versioned schemas for `ConfigurationSnapshot`, `DocumentRevision`, lifecycle
+records, causal envelopes, attempt relations, and survival observations with
+generated fixtures. The snapshot schema preserves future managed provenance
+without implementing an Events adapter in v0.
 
 **Acceptance criteria:**
 
 - The stack decision records alternatives, latency/privacy tradeoffs, and a
   rollback path.
 - Every R001-R004 and R011 object has a machine-readable v1 draft schema.
+- Standalone `ConfigurationSnapshot` fixtures pin immutable component and
+  effective-policy identity; optional desired-state provenance does not imply
+  activation or use.
 - Unknown incompatible major versions fail closed.
 
 **Verification:**

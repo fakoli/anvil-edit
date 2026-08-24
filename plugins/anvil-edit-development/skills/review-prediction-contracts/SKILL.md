@@ -34,6 +34,12 @@ description: Adversarially review Anvil Edit lifecycle, wire, persistence, and i
   executed directly.
 - Serving and Edit evidence have one correlation seam, explicit ownership, and
   conflict behavior.
+- Fleet configuration is source-free policy input, never an `ExecutionGrant`;
+  it may narrow but never widen local permission and remains outside the hot
+  path.
+- A convergence adapter reports applied only after Core verifies the exact
+  active resource, generation, revision, and digest; indeterminate activation
+  is recovered by observation rather than silent replay.
 - Immutable evidence remains subject to authorized physical erasure.
 - Multi-document atomicity is never implied when an editor cannot provide it.
 

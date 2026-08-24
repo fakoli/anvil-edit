@@ -35,7 +35,7 @@ outcomes, deployment, and promotion.
 
 ## Requirements
 
-- R001: Every replay and experiment shall pin corpus provenance/permission, sample selection/exclusions, editor adapter and revision contract, complete model/tokenizer/protocol/context/runtime/quantization/validation bundle, hardware/runtime state, policy revisions, and raw artifact digests.
+- R001: Every replay and experiment shall pin corpus provenance/permission, sample selection/exclusions, editor adapter and revision contract, active `ConfigurationSnapshot`, any externally desired configuration revision as separate evidence, complete model/tokenizer/protocol/context/runtime/quantization/validation bundle, hardware/runtime state, policy revisions, and raw artifact digests.
 - R002: Lab shall ingest only traces and source-bearing content covered by an unexpired replay grant and shall preserve purpose-scoped identifiers and deletion lineage.
 - R003: Replay shall reconstruct the same locked opportunity inputs and report nondeterminism or missing content rather than silently substituting current repository state.
 - R004: E3 replay shall report candidate concordance and fixed-opportunity policy simulation and shall not be labeled counterfactual human utility.
@@ -51,6 +51,7 @@ outcomes, deployment, and promotion.
 - R014: Promotion reports shall require complete manifests, contract/privacy tests, local resource evidence, locked replay, live shadow, a predeclared visible comparison, censor-aware durable outcomes, tested rollback/migration behavior, and human approval of exact scope.
 - R015: Lab shall support authorized physical erasure of source content, linkable metadata, derived indexes/reports, and governed export copies without leaving a cross-repository correlation graph.
 - R016: Public reports shall contain only portable sanitized evidence; private traces, topology, active routes, and raw operator evidence shall remain outside the public repository.
+- R017: Reports shall distinguish configuration desired, received, staged, active, used by a request, executor-deployed, and policy-promoted states and shall not infer one from another.
 
 ## Acceptance Criteria
 
@@ -65,6 +66,8 @@ outcomes, deployment, and promotion.
   undersampled p99 as a promotion gate.
 - A retry, missing Serving observation, or conflicting timing/identity claim is
   preserved in the joined manifest and cannot be silently repaired.
+- A desired Events generation that was never activated or used cannot appear as
+  the configuration identity of a replay, benchmark, or promotion report.
 - LLM-judge output is blinded/order-randomized, secondary, and accompanied by a
   reproducible human-calibration sample when used.
 - Exploratory and confirmatory datasets cannot overlap under the manifest's
@@ -159,8 +162,9 @@ deployment side effect.
 **Likely files:** schemas/lab/v1, src/lab/manifests, tests/lab/test_manifest.py
 
 Implement schemas for trace provenance/permission, locked sample selection,
-complete system bundles, editor revision contracts, assignments, raw artifacts,
-and deletion dependencies.
+complete system bundles, configuration snapshots and separate desired-state
+provenance, editor revision contracts, assignments, raw artifacts, and deletion
+dependencies.
 
 **Acceptance criteria:**
 

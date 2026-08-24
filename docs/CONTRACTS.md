@@ -57,6 +57,64 @@ joined through causal identifiers; receivers do not subtract unrelated clocks.
 Purpose-scoped identifiers must not become a covert cross-repository or
 cross-product identity graph.
 
+## `ConfigurationSnapshot`
+
+The immutable, locally validated configuration identity used by Core for one
+or more prediction lifecycles. Standalone local configuration is the initial
+provider. A future Anvil Events reconciler may propose a replacement, but the
+hot path consumes only an already-active snapshot.
+
+Required semantics:
+
+- configuration provider and provider revision;
+- snapshot identifier, immutable revision, and canonical digest;
+- activation attempt identifier and optional previous snapshot identifier;
+- standalone or managed mode;
+- optional Events desired event, authority, resource, generation, revision,
+  adapter, and artifact digest, kept distinct from the active snapshot identity;
+- immutable prediction, context, display, routing, authorization, prompt-
+  protocol, capability-pack, and normalization component identities;
+- effective local policy digest and whether an external proposal was narrowed;
+- activation and verification observations on one declared clock; and
+- compatibility result, validity limit when any, and lifecycle observation.
+
+Lifecycle observations distinguish `staged`, `active`, `superseded`,
+`rejected`, `rolled_back`, and `indeterminate`; they do not mutate the
+snapshot's immutable identity. Desired, received, staged, active, used by a
+request, deployed at an executor, and promoted are separate evidence states. A
+request or dispatch pins the active snapshot it used; later activation does
+not rewrite prior evidence.
+
+## `ConfigurationReconciliationObservation`
+
+A source-free local record joining an external desired revision to Core's
+configuration activation boundary without treating either side as the other's
+authority.
+
+Required semantics:
+
+- desired event, correlation, reconciliation operation, and local activation
+  attempt identifiers;
+- authority/resource/adapter binding and target result;
+- generation, revision, artifact digest, bundle-contract version, and adapter
+  revision;
+- prior and proposed `ConfigurationSnapshot` identifiers;
+- receive, stage, activate, verify, rollback, and terminal observations when
+  they occurred;
+- schema, compatibility, artifact, local-policy intersection, activation, and
+  verification results; and
+- terminal outcome, exact effective `ConfigurationSnapshot` identifier and
+  digest when activated, whether the external proposal was narrowed, and
+  bounded source-free reason codes.
+
+Exactly one locally configured authority owns a managed resource on a node at a
+time. Changing that owner requires a separate local rebind operation. Generation
+is monotonic per authority/resource binding, and reusing one generation with a
+different revision, digest, artifact reference, adapter, or bundle schema is an
+integrity conflict. An authority-requested rollback is a new higher generation
+referring to previously accepted immutable bytes; generation never moves
+backward.
+
 ## `DocumentRevision`
 
 A portable identity for the exact editor buffer state used by a snapshot,
@@ -163,6 +221,7 @@ and from the later candidate-display decision.
 Required semantics:
 
 - source opportunity identifier;
+- active `ConfigurationSnapshot` identifier;
 - prediction, context, protocol, and routing policy revisions;
 - decision: `abstain`, `dispatch`, `shadow_dispatch`, or `defer`;
 - selected explicit capability or standalone executor;
@@ -209,6 +268,7 @@ A single, explicit inference attempt.
 Required semantics:
 
 - source opportunity and context-pack identifiers;
+- active `ConfigurationSnapshot` identifier inherited from the dispatch;
 - prediction-policy identifier and immutable revision;
 - protocol identifier and immutable revision;
 - explicit capability alias or standalone endpoint identity;
@@ -462,6 +522,16 @@ An unavailable or failed selected capability returns an observable failure.
 Any retry, fallback, race, or escalation is an explicit Edit policy action with
 a separate request and outcome.
 
+### Configuration activation
+
+External desired state is never consulted synchronously during a prediction.
+Core validates, compiles, and atomically activates a complete configuration
+snapshot before it becomes eligible for dispatch. Unknown incompatible majors,
+same-generation digest conflicts, incomplete bundles, failed preflight, or
+local-policy broadening leave the prior verified snapshot active. A crash with
+uncertain activation becomes `indeterminate` and is resolved by reading Core's
+exact active identity rather than replaying blindly.
+
 ### Content minimization
 
 Source-bearing data is not copied into ordinary logs, errors, metrics labels,
@@ -524,9 +594,32 @@ as durable project evidence through a separately authorized workflow.
 
 ### Anvil Events
 
-Events may converge immutable policy, prompt protocol, model-pack, retention,
-or benchmark-manifest revisions. Per-opportunity and per-keystroke records stay
-in Edit's local data plane.
+Events may eventually converge one immutable, source-free Anvil Edit
+configuration bundle per managed release channel. The initial desired resource
+is `edit/config/<channel>` and the reserved adapter name is
+`anvil_edit_config`. These are design identifiers, not implemented or deployed
+resources.
+
+The desired event names one authority-assigned generation, immutable revision,
+artifact digest, and logical artifact reference. It carries no configuration
+body, source, prompt containing captured source, endpoint, credential, path,
+trace identifier, or behavioral outcome. The complete bundle is the atomic
+activation unit until a separately tested multi-resource activation contract
+exists.
+
+Core treats the bundle as policy input, not authorization. Local pause and
+repository/destination permissions win; fleet policy may narrow but never
+widen runtime read, dispatch, persistence, replay, export, training, shadow,
+task-context, or outcome-correlation permission. A future adapter may report
+`reconcile.applied` only after Core reports the exact desired authority,
+resource, generation, revision, artifact digest, and adapter as active together
+with the exact effective `ConfigurationSnapshot` identifier and digest.
+
+Events delivery and reconciliation remain outside the prediction hot path.
+Per-opportunity, per-request, per-keystroke, source-bearing, and human-outcome
+records stay in Edit's local data plane. The full future contract and its
+explicit non-implementation status are in
+[`integrations/anvil-events.md`](integrations/anvil-events.md).
 
 ### Anvil Workbench
 

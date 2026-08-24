@@ -156,6 +156,9 @@ benchmark schema and runner revision
 trace/corpus identity, digest, provenance, and permission class
 sample selection and exclusions
 adapter/editor identity, document-revision contract, and position encoding
+active ConfigurationSnapshot identity, revision, digest, and provider
+externally desired configuration event/resource/generation/revision, if any,
+  kept separate from the active and used snapshot
 model repository and immutable revision
 tokenizer and immutable revision
 quantization or conversion artifact digest
@@ -282,6 +285,8 @@ retain the default.
 - Name the full system bundle and state every changed component.
 - Separate exploratory from confirmatory results and permit an inconclusive
   decision.
+- Distinguish configuration desired, received, staged, active, used by a
+  request, executor-deployed, and policy-promoted states.
 - Report assignment, clusters, censoring, and attribution loss.
 - Label LLM-judge results secondary and publish the blinded calibration sample.
 - Preserve immutable raw result artifacts at their permitted disclosure level.
