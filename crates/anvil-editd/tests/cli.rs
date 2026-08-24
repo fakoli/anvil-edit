@@ -23,7 +23,7 @@ fn version_reports_foundation_status() {
     let stdout = String::from_utf8(output.stdout).expect("version is UTF-8");
 
     assert!(output.status.success());
-    assert!(stdout.contains("contract 0.1"));
+    assert!(stdout.contains("contract 0.2"));
     assert!(stdout.contains("configuration-identity-pinning-only"));
 }
 

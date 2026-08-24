@@ -4,7 +4,7 @@ Status: **proposed**
 
 Planning window: **2026-08-24 through 2026-11-16**
 
-Last reviewed: **2026-08-23**
+Last reviewed: **2026-08-24**
 
 This roadmap optimizes for learning rate. Dates and candidate models are
 planning hypotheses, not deployment commitments. Each phase ends with evidence
@@ -33,11 +33,13 @@ not this public roadmap.
 Target: **2026-08-24 to 2026-09-02**
 
 Implementation note (2026-08-24): D017 and the initial Rust workspace resolve
-the language/process-shape slice. The workspace currently proves only semantic
-configuration identity, atomic identity replacement, request-local pinning,
-and the repository verification harness. It does not implement the canonical
-`ConfigurationSnapshot` or satisfy the Phase 0 schema, privacy, editor,
-adopter, or fixture exit gates.
+the language/process-shape slice. D018 adds the I/O-free semantic lifecycle
+model, a complete structural `ConfigurationSnapshot`, source-free content
+handles, and critical causal/document/grant/candidate/application fixtures.
+Core itself still proves only atomic configuration-identity replacement and
+request-local identity pinning. The repository has not selected O003's wire,
+IPC, or durable schemas and does not yet satisfy the Phase 0 privacy, editor,
+adopter, language-neutral-fixture, or executable-behavior exit gates.
 
 Deliverables:
 

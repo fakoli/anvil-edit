@@ -13,9 +13,10 @@ contracts but have different latency and data-retention requirements.
 flowchart LR
     IDE[Editor adapter]
     GATE[Opportunity gate]
+    READ[Runtime-read grant]
     CTX[Context compiler]
     POLICY[Prediction policy]
-    AUTH[Execution grant]
+    AUTH[Destination execution grant]
     EXEC[Explicit inference capability]
     NORM[Normalize and validate]
     SHOW[Abstain or present]
@@ -23,12 +24,13 @@ flowchart LR
     CONTENT[(Governed content store)]
     LAB[Anvil Edit Lab]
 
-    IDE --> GATE --> CTX --> POLICY --> AUTH --> EXEC --> NORM --> SHOW --> IDE
+    IDE --> GATE --> READ --> CTX --> POLICY --> AUTH --> EXEC --> NORM --> SHOW --> IDE
     IDE -. newer buffer version .-> GATE
     GATE -. cancel stale work .-> CTX
     GATE -. cancel stale work .-> EXEC
 
     GATE --> STORE
+    READ --> STORE
     CTX --> STORE
     POLICY --> STORE
     AUTH --> STORE
@@ -44,7 +46,8 @@ flowchart LR
 
 The diagram does not imply that content is persisted. Context and candidates
 may remain memory-only. Source-bearing persistence requires a separate grant.
-`AUTH` runs before content is serialized for another process or trust domain.
+`READ` resolves before context compilation. `AUTH` runs before content is
+serialized for another process or trust domain.
 
 ## Foundation implementation shape
 
@@ -59,17 +62,23 @@ anvil-edit-contracts <- anvil-edit-core <- anvil-editd
 
 | Surface | Foundation ownership |
 | --- | --- |
-| `anvil-edit-contracts` | I/O-free semantic types and invariants; not yet a wire format |
+| `anvil-edit-contracts` | I/O-free semantic lifecycle model and critical structural invariants; not a wire format |
 | `anvil-edit-core` | Request-local policy/coordination primitives; no editor or model ownership |
 | `anvil-editd` | Process shell for future local control and prediction transports |
 | `xtask` | Cross-platform repository verification, not product runtime code |
 
-The first implemented vertical seam is deliberately smaller than Core v0: a
-structurally valid standalone configuration identity can be atomically replaced
-while an existing request retains its prior identity. It is explicitly not the
-complete canonical `ConfigurationSnapshot`. It does not yet validate fleet
-provenance, compile privacy policy, dispatch source, persist evidence, or serve
-an editor.
+The contract crate now defines the full foundation semantic record set from
+configuration and document revision through dispatch, presentation,
+application, outcome, and survival. It uses source-free `ContentReference`
+handles rather than embedding buffer, URI, prompt, model-output, or replacement
+bytes in durable lifecycle records. The mapping and current invariant coverage
+are in [`DATA-MODEL.md`](DATA-MODEL.md).
+
+The implemented Core vertical seam remains deliberately smaller than Core v0:
+a structurally valid standalone configuration identity can be atomically
+replaced while an existing request retains its prior identity. Core does not
+yet pin the complete `ConfigurationSnapshot`, validate fleet provenance,
+compile privacy policy, dispatch source, persist evidence, or serve an editor.
 
 Editor adapters stay in their editor's native extension ecosystem. Lab may use
 Python or another analysis-oriented language for orchestration and reports.
@@ -77,9 +86,9 @@ Those components consume versioned process contracts or immutable artifacts;
 they do not load into the Rust daemon through an in-process FFI or dynamic
 plug-in ABI in the foundation phase. O003 still owns the concrete wire format,
 IPC transport, generated bindings, and durable schema, while O013 owns peer and
-destination identity. Until those decisions close, Rust types are semantic
-contracts rather than a promise that other languages must mirror their memory
-layout.
+destination identity. Until those decisions close, Rust types and their
+`LifecycleRecord` union are semantic contracts rather than a promise that other
+languages must mirror their memory layout or enum discriminants.
 
 ## Components
 
@@ -135,10 +144,11 @@ and local-session controls into an `ExecutionGrant`. It runs after context
 selection identifies the prospective content classes but before the protocol
 adapter serializes source for dispatch.
 
-Context selection itself runs only inside a pre-resolved local runtime-read
-grant. The content-bound dispatch grant then binds the selected digests/classes
-to a destination before serialization. Neither step may borrow authority from
-the other.
+Context selection itself runs only inside a pre-resolved local
+`RuntimeReadGrant`. The content-bound `ExecutionGrant` then binds the selected
+purpose-scoped handles, digests, and classes to a destination before
+serialization. They are separate immutable lifecycle records; neither step may
+borrow authority from the other.
 
 The policy model is deliberately finite rather than an open-ended DSL: deny
 rules union, allowlists intersect, minimum retention wins, local pause wins,

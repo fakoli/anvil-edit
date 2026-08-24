@@ -13,7 +13,7 @@ but they meet Core at explicit, versioned boundaries.
 
 | Path | Owner | Current state |
 | --- | --- | --- |
-| `crates/anvil-edit-contracts` | Semantic domain types shared by Core surfaces | Implements configuration identity only |
+| `crates/anvil-edit-contracts` | Semantic domain types shared by Core surfaces | Implements the source-free foundation lifecycle model and critical structural invariants |
 | `crates/anvil-edit-core` | Latency-sensitive policy and coordination | Implements atomic configuration-identity pinning only |
 | `crates/anvil-editd` | Future local daemon process | Help/version shell; starts no server |
 | `xtask` | Cross-platform developer verification | Runs Rust and product-guidance checks |
@@ -79,13 +79,32 @@ its schema, authenticate its peer where required, preserve relative deadlines
 and cancellation, and reject incompatible majors. An `ExecutionGrant` must be
 resolved before source is serialized for another process or trust domain.
 
+## Working with the semantic data model
+
+[`DATA-MODEL.md`](DATA-MODEL.md) maps the Rust modules and aggregates back to
+the normative lifecycle in [`CONTRACTS.md`](CONTRACTS.md). Keep foundational
+identity, envelope, document, capture, dispatch, candidate, and outcome types
+in their owning modules; do not collapse them into a generic event payload or a
+shared utility module.
+
+Durable records carry source-free `ContentReference` handles. Runtime source,
+logical URI bytes, prompts, native output, and replacement text remain behind
+the authorization and governed-content boundaries. Adding serialization,
+database derives, transport framing, or generated bindings to the contract
+crate requires O003 to be resolved first.
+
+Context compilation consumes a `RuntimeReadGrant`; protocol serialization
+consumes a later content-bound `ExecutionGrant`. Do not combine them, infer one
+from the other, or reduce either to a configured endpoint or repository flag.
+
 ## Evidence and status
 
 Code, docs, configuration, deployment, and product evidence are different
 states. The daemon shell proves that the workspace builds; it does not prove a
-running service. The configuration test proves stable pinning; it does not
-prove Events convergence, privacy authorization, inference, editor usefulness,
-or latency.
+running service. The semantic lifecycle fixture proves structural joins and
+selected invariants, while the configuration test proves stable identity
+pinning. Neither proves Events convergence, privacy authorization, denied
+serialization behavior, inference, editor usefulness, or latency.
 
 Local architecture output under `graphify-out` is ignored by Git. Public
 examples and tests must remain sanitized and topology-neutral.

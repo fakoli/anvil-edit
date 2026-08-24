@@ -1,18 +1,39 @@
 # Prediction contracts
 
-Status: **normative foundation; wire format not yet implemented**
+Status: **normative foundation; semantic Rust model implemented, wire format open**
 
-Last reviewed: **2026-08-23**
+Last reviewed: **2026-08-24**
 
 This document defines the semantic contract. Concrete JSON Schema, API, and
 database representations must preserve these meanings and invariants, but are
 not chosen here.
+
+## Implemented semantic projection
+
+`crates/anvil-edit-contracts` implements the foundation lifecycle as I/O-free
+Rust types at semantic contract version `0.2`. The closed `LifecycleRecord`
+union preserves the distinct durable record roles in this document, while
+critical constructors and validators enforce causal, configuration,
+document-range, authorization, candidate-overlap, and v0 application-shape
+invariants.
+
+The Rust `RecordEnvelope.semantic_version` identifies this semantic projection.
+It is deliberately not the serialized `schema_version` named below; O003 owns
+that independently versioned field and representation.
+
+This is not O003's wire or durable schema decision. Rust field order, enum
+discriminants, memory layout, and `Debug` output are not interchange formats.
+Future polyglot encodings version independently and must pass language-neutral
+fixtures. [`DATA-MODEL.md`](DATA-MODEL.md) maps the implementation back to this
+canonical contract.
 
 ## Lifecycle
 
 ```text
 EditorSnapshot
       -> PredictionOpportunity
+      -> RuntimeReadGrant
+      -> ContextPack
       -> DispatchDecision
       -> ExecutionGrant
       -> PredictionRequest
@@ -133,12 +154,23 @@ Required semantics:
 - full-buffer byte length and digest over the declared canonicalization; and
 - source persistence class.
 
+Logical URI bytes and resolved paths are P3 source-bearing data. The durable
+semantic Rust record therefore carries a purpose-scoped governed content handle
+plus the URI scheme rather than embedding URI bytes in ordinary metadata. A
+runtime or adapter may resolve the handle only through the independently
+authorized boundary for that operation.
+
 A document name, path, or editor version number alone is not a revision. Text
 edits declare whether ranges are half-open and how multiple edits are ordered.
 The foundational contract permits one-document conditional application. Any
 future multi-document transaction must either provide atomic compare-and-apply
 across all target revisions or expose an explicit per-document review fallback;
 it must never imply atomicity the editor cannot provide.
+
+Downstream `DocumentRevisionRef` values repeat the source-free document
+incarnation, editor-version namespace/value, text semantics, full-buffer byte
+length, and digest. This makes stale fencing interpretable during out-of-order
+delivery without requiring an immediately available database join.
 
 ## `EditorSnapshot`
 
@@ -181,6 +213,24 @@ Required semantics:
 An opportunity is not synonymous with a keystroke. Adapters may observe many
 editor events without emitting an opportunity.
 
+## `RuntimeReadGrant`
+
+A finite local authorization resolved before context compilation. It is a
+separate immutable record from the later destination-bound `ExecutionGrant`.
+
+Required semantics:
+
+- source snapshot identifier;
+- exact purpose-scoped content handles covered by the decision;
+- finite operation purpose;
+- runtime-read decision, effective policy digest, issuer, issue time, and
+  one-shot or relative lifetime; and
+- protected-content result and bounded denial or narrowing reasons.
+
+A runtime-read grant cannot authorize dispatch, persistence, replay, export,
+training, shadow use, task context, or outcome correlation. Those purposes need
+their own resolved authority.
+
 ## `ContextPack`
 
 A request input compiled from one snapshot under an explicit context policy.
@@ -190,6 +240,7 @@ from model choice.
 Required semantics:
 
 - source snapshot and `DocumentRevision` values;
+- consumed `RuntimeReadGrant` identifier;
 - context-policy identifier and immutable revision;
 - ordered context items;
 - for each item, source kind, content digest, inclusion reason, token count,
@@ -246,9 +297,9 @@ Required semantics:
 - destination and operator trust domain;
 - explicit capability and protocol revision;
 - purpose and visible/shadow mode;
-- allowed content classes and protected-content result;
-- independent grants for runtime read, executor dispatch, persistence, replay,
-  export, training, task context, and outcome correlation;
+- allowed content classes, exact purpose-scoped content handles and digests,
+  and protected-content result;
+- executor-dispatch decision and independent shadow permission when applicable;
 - effective policy digest, grant issuer, issued time, and expiry or one-shot
   consumption rule; and
 - decision and denial reason codes.
@@ -260,6 +311,8 @@ destination trust domain and permitted content must be known before dispatch.
 A local runtime-read grant precedes context access; a content-bound dispatch
 grant binds the selected digests/classes before serialization. They are
 separate immutable authorizations even when one policy engine issues both.
+Persistence, replay, export, training, task context, and outcome correlation
+remain separate authorities and are not implied by this dispatch grant.
 
 ## `PredictionRequest`
 
@@ -330,11 +383,22 @@ replacement_content or governed content_ref
 replacement_digest
 ```
 
+The durable Rust semantic record uses a governed `ContentReference` for the
+replacement and obtains the replacement digest from that handle. Actual
+replacement bytes remain in the bounded runtime or governed content store; a
+future source-bearing wire payload requires the applicable grant before it is
+constructed.
+
 The candidate declares edit ordering and rejects overlap after normalizing all
 ranges into the base revision's position encoding. Native model output is
 untrusted protocol input: parsers apply byte, nesting, edit-count, replacement,
 and time limits. Raw protocol text, control sequences, or markup is never
 rendered as editor UI or executed.
+
+The foundation ordering is `base_relative_as_listed`: every range addresses
+the unchanged exact base revision, and equal-position insertions appear in list
+order in the semantic result. An adapter must either apply that result
+atomically or produce an equivalent conditional transaction.
 
 Candidates can have these terminal states:
 
@@ -358,7 +422,8 @@ The policy decision about a candidate, separate from candidate generation.
 
 Required semantics:
 
-- source opportunity and considered candidate identifiers;
+- source opportunity, considered candidate identifiers, and selected candidate
+  identifier for a `show` decision;
 - decision-policy identifier and immutable revision;
 - decision: `show`, `suppress`, `no_candidate`, `stale`, or `expired`;
 - reason codes and recorded scores;
