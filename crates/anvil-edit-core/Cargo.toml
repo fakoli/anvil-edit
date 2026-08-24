@@ -1,0 +1,13 @@
+[package]
+name = "anvil-edit-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+anvil-edit-contracts.workspace = true
+arc-swap.workspace = true
+
+[lints]
+workspace = true

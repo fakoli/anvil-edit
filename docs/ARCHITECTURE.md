@@ -2,7 +2,7 @@
 
 Status: **proposed foundation**
 
-Last reviewed: **2026-08-23**
+Last reviewed: **2026-08-24**
 
 ## System shape
 
@@ -45,6 +45,41 @@ flowchart LR
 The diagram does not imply that content is persisted. Context and candidates
 may remain memory-only. Source-bearing persistence requires a separate grant.
 `AUTH` runs before content is serialized for another process or trust domain.
+
+## Foundation implementation shape
+
+The initial implementation is a Rust 2024 Cargo workspace with an exact
+toolchain pin. Rust owns the latency-sensitive contract types, Core policy and
+coordination path, deterministic replay kernel, and daemon. The initial crate
+dependency direction is intentionally one-way:
+
+```text
+anvil-edit-contracts <- anvil-edit-core <- anvil-editd
+```
+
+| Surface | Foundation ownership |
+| --- | --- |
+| `anvil-edit-contracts` | I/O-free semantic types and invariants; not yet a wire format |
+| `anvil-edit-core` | Request-local policy/coordination primitives; no editor or model ownership |
+| `anvil-editd` | Process shell for future local control and prediction transports |
+| `xtask` | Cross-platform repository verification, not product runtime code |
+
+The first implemented vertical seam is deliberately smaller than Core v0: a
+structurally valid standalone configuration identity can be atomically replaced
+while an existing request retains its prior identity. It is explicitly not the
+complete canonical `ConfigurationSnapshot`. It does not yet validate fleet
+provenance, compile privacy policy, dispatch source, persist evidence, or serve
+an editor.
+
+Editor adapters stay in their editor's native extension ecosystem. Lab may use
+Python or another analysis-oriented language for orchestration and reports.
+Those components consume versioned process contracts or immutable artifacts;
+they do not load into the Rust daemon through an in-process FFI or dynamic
+plug-in ABI in the foundation phase. O003 still owns the concrete wire format,
+IPC transport, generated bindings, and durable schema, while O013 owns peer and
+destination identity. Until those decisions close, Rust types are semantic
+contracts rather than a promise that other languages must mirror their memory
+layout.
 
 ## Components
 

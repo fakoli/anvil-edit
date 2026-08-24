@@ -10,10 +10,14 @@ control.
 
 ## Current status
 
-Anvil Edit is at the foundation stage. This repository contains the product
-definition, safety and privacy rules, evaluation plan, product requirements,
-and development skills. It does not yet contain a released application, a
-deployed model, or proven performance results.
+Anvil Edit is at the foundation stage. This repository now contains an initial
+Rust workspace alongside the product definition, safety and privacy rules,
+evaluation plan, product requirements, and development skills. The code proves
+one narrow building block: work already underway keeps the configuration
+identity it began with even if a newer identity is selected.
+
+It is not yet a released application. It has no editor integration, model
+connection, trace database, or proven latency and usefulness results.
 
 Anvil Edit is not a new editor or coding model. It is intended to connect
 editors, explicitly chosen model capabilities, and evidence about what actually
@@ -64,8 +68,10 @@ what deserves to grow.
 - [How we will judge whether it works](docs/EVALUATION.md)
 - [How privacy and developer control work](docs/PRIVACY-AND-TRUST.md)
 - [The validation roadmap](docs/ROADMAP.md)
+- [How the codebase is organized and checked](docs/DEVELOPMENT.md)
 
-Building with us? Start with [the contributor guidance](AGENTS.md). The
+Building with us? Start with [the contributor guidance](AGENTS.md) and run
+`cargo xtask check` before handing off a change. The
 [development skills](plugins/anvil-edit-development/skills) help contributors
 review safety, privacy, experiments, model evidence, and documentation as the
 product grows. They are checked into this repository but are not proof that a
